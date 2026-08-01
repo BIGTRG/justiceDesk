@@ -195,6 +195,53 @@ scale, and should happen before any volume.
 
 ---
 
+## R — Referral (build-order step 4)
+
+### R-1 · BLOCKING (COUNSEL) · No referral fee amounts are seeded
+The engine is built and the flat-fee structure is enforced by trigger, but **no
+`referral_lead` rows exist**. Seeding an amount would imply the structure is settled while
+`COMPLIANCE.md` §3 is open. `billingEligibility` returns `no_published_fee` until amounts
+are published, which is the correct staging behaviour rather than a fault.
+
+### R-2 · DECISION · Contact details are released on acceptance, not with the offer
+A lead offered to a panel carries the matter and the county, not the caller's phone
+number. It is released only when a recipient accepts. The alternative — broadcasting
+contact details to everyone who looks — would hand a distressed caller's number to every
+firm that declined. Confirm this is the intent, since it slows speed-to-lead slightly.
+
+### R-3 · DECISION · An unqualified lead is kept, not discarded
+A lead that failed only because a consent was never asked for stays in `draft` with its
+reasons, so it is recoverable on a callback. Confirm that retention is wanted; the
+alternative is deleting non-consented contact data immediately.
+
+### R-4 · DECISION · Damages band routes but cannot price
+`damages_band` exists on `leads` because an injury matter routes to a different panel than
+a small claim. `feeKeyFor` takes practice area and county only — two arguments, asserted by
+a test — so case value is structurally unable to reach the fee (#2). Confirm that routing
+on damages band is itself acceptable.
+
+---
+
+## D — Drip (build-order step 5)
+
+### D-1 · COUNSEL · How long does TCPA consent stay fresh?
+No fixed statutory number. The implementation uses **18 months** as a conservative
+placeholder so the system errs toward re-asking. Counsel should set the real figure.
+
+### D-2 · BLOCKING (COUNSEL) · Drip copy is unwritten
+`drip_campaigns.copy_approved` defaults false and `shouldSendDrip` suppresses on it, so no
+drip can send until copy is approved. The messages go unsolicited to people in legal
+distress; wording is counsel's.
+
+### D-3 · DECISION · Quiet hours are wider than the legal floor
+8pm–8am recipient-local, deliberately more conservative than required. Confirm or narrow.
+
+### D-4 · DECISION · Opt-out matching is loose on purpose
+"please stop texting me" and "leave me alone" are honoured, not just the exact keyword
+STOP. Requiring the keyword to honour a plain request would be indefensible; confirm.
+
+---
+
 ## Resolved during this build
 
 - **Multi-tenancy retrofit** — done, `0004_multi_tenancy.sql`. Applied and verified

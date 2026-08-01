@@ -303,6 +303,40 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  services/referral:
+    dependencies:
+      '@justicedesk/service-kit':
+        specifier: workspace:*
+        version: link:../../packages/service-kit
+      '@justicedesk/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      express:
+        specifier: ^4.21.2
+        version: 4.22.2
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
+    devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/jest':
+        specifier: ^29.5.14
+        version: 29.5.14
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@22.20.1)
+      ts-jest:
+        specifier: ^29.2.5
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@22.20.1))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   services/voice:
     dependencies:
       '@justicedesk/service-kit':
