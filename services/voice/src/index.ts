@@ -232,6 +232,11 @@ async function main(): Promise<void> {
     { allowEnvFallback: true }
   )
   const aiGatewayUrl = process.env.AI_GATEWAY_BASE_URL ?? 'http://localhost:4102'
+  const apiUrl = process.env.API_BASE_URL ?? 'http://localhost:4101'
+  const internalToken = readSecret(
+    process.env.INTERNAL_SERVICE_TOKEN_VAULT_KEY ?? 'internal_service_token',
+    { allowEnvFallback: true }
+  )
   const smsEnabled = process.env.SMS_SENDING_ENABLED === 'true'
 
   const app = createApp({
@@ -265,9 +270,30 @@ async function main(): Promise<void> {
         }
         logger.info('sms send requested')
       },
-      createPaymentLink: async () => {
-        // Stripe payment links land in step 2 alongside the post-call landing page.
-        throw HttpError.unavailable('Payment links are not wired up yet.')
+      createPaymentLink: async ({ callId, kind, amountCents }) => {
+        // The amount is NOT sent. svc-api reads the price from the fee schedule by key,
+        // so a bug or a compromise here cannot invent a price for a caller.
+        const feeKey =
+          kind === 'metered'
+            ? 'call.per_minute'
+            : kind === 'flat_session'
+              ? 'call.flat_session'
+              : 'document.one_shot'
+
+        const response = await fetch(`${apiUrl}/v1/internal/calls/${callId}/payment-link`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-service-token': internalToken },
+          body: JSON.stringify({ feeKey }),
+        })
+        if (!response.ok) {
+          // While the compliance gate is closed every fee is draft, so this is the
+          // expected path in staging rather than a fault.
+          logger.warn('payment link unavailable', { callId, feeKey, status: response.status })
+          throw HttpError.unavailable('Payments are not available right now.')
+        }
+        const { url } = (await response.json()) as { url: string }
+        logger.info('payment link created', { callId, feeKey, amountCents })
+        return url
       },
     },
   })

@@ -14,6 +14,27 @@ import type pg from 'pg'
 import { closePool, getPool } from './pool.js'
 import { CASE_TYPES, JURISDICTIONS, PLANS, TEMPLATES, WORKFLOW_DEFINITIONS } from './seeds/index.js'
 
+/**
+ * The tenant every seeded row belongs to.
+ *
+ * Migration 0004 made workflow definitions, templates and fees tenant-scoped, which also
+ * moved their unique constraints. The seed has to resolve the tenant and use the new
+ * conflict targets, or every ON CONFLICT here fails to match an index.
+ */
+async function defaultTenantId(client: pg.PoolClient): Promise<string> {
+  const { rows } = await client.query<{ id: string }>(
+    `SELECT id FROM tenants WHERE key = $1`,
+    [process.env.SEED_TENANT_KEY ?? 'justice_desk']
+  )
+  const tenant = rows[0]
+  if (!tenant) {
+    throw new Error(
+      'No tenant to seed into. Run migrations first — 0004_multi_tenancy.sql creates the justice_desk tenant.'
+    )
+  }
+  return tenant.id
+}
+
 async function seedJurisdictions(client: pg.PoolClient): Promise<Map<string, string>> {
   const ids = new Map<string, string>()
   for (const j of JURISDICTIONS) {
@@ -53,7 +74,8 @@ async function seedCaseTypes(client: pg.PoolClient): Promise<Map<string, string>
 async function seedWorkflows(
   client: pg.PoolClient,
   caseTypeIds: Map<string, string>,
-  jurisdictionIds: Map<string, string>
+  jurisdictionIds: Map<string, string>,
+  tenantId: string
 ): Promise<void> {
   for (const def of WORKFLOW_DEFINITIONS) {
     // Fail the seed rather than write a broken state machine.
@@ -68,9 +90,9 @@ async function seedWorkflows(
 
     await client.query(
       `INSERT INTO workflow_definitions
-         (case_type_id, jurisdiction_id, version, status, definition, verification)
-       VALUES ($1, $2, $3, $4::workflow_status, $5::jsonb, $6::jsonb)
-       ON CONFLICT (case_type_id, jurisdiction_id, version) DO UPDATE
+         (tenant_id, case_type_id, jurisdiction_id, version, status, definition, verification)
+       VALUES ($7, $1, $2, $3, $4::workflow_status, $5::jsonb, $6::jsonb)
+       ON CONFLICT (tenant_id, case_type_id, jurisdiction_id, version) DO UPDATE
          SET definition   = EXCLUDED.definition,
              verification = EXCLUDED.verification
          -- Only draft rows are updatable; 0003 blocks edits to published definitions.
@@ -82,6 +104,7 @@ async function seedWorkflows(
         def.status,
         JSON.stringify(def),
         JSON.stringify(def.verification),
+        tenantId,
       ]
     )
 
@@ -96,7 +119,8 @@ async function seedWorkflows(
 async function seedTemplates(
   client: pg.PoolClient,
   caseTypeIds: Map<string, string>,
-  jurisdictionIds: Map<string, string>
+  jurisdictionIds: Map<string, string>,
+  tenantId: string
 ): Promise<void> {
   for (const t of TEMPLATES) {
     const caseTypeId = caseTypeIds.get(t.caseTypeKey)
@@ -107,10 +131,10 @@ async function seedTemplates(
 
     await client.query(
       `INSERT INTO document_templates
-         (case_type_id, jurisdiction_id, key, name, source, form_pdf_minio_key,
+         (tenant_id, case_type_id, jurisdiction_id, key, name, source, form_pdf_minio_key,
           field_map, interview_schema, disclosure_text, verification)
-       VALUES ($1, $2, $3, $4, $5::template_source, $6, $7::jsonb, $8::jsonb, $9, $10::jsonb)
-       ON CONFLICT (case_type_id, jurisdiction_id, key) DO UPDATE
+       VALUES ($11, $1, $2, $3, $4, $5::template_source, $6, $7::jsonb, $8::jsonb, $9, $10::jsonb)
+       ON CONFLICT (tenant_id, case_type_id, jurisdiction_id, key) DO UPDATE
          SET name             = EXCLUDED.name,
              source           = EXCLUDED.source,
              form_pdf_minio_key = EXCLUDED.form_pdf_minio_key,
@@ -129,29 +153,50 @@ async function seedTemplates(
         JSON.stringify(t.interviewSchema),
         t.disclosureText,
         JSON.stringify(t.verification),
+        tenantId,
       ]
     )
   }
   console.log(`  templates: ${TEMPLATES.length}`)
 }
 
-async function seedPlans(client: pg.PoolClient, caseTypeIds: Map<string, string>): Promise<void> {
+/**
+ * Fee lines for the three case types.
+ *
+ * `plans` no longer exists — 0005 migrated it into `fee_schedule`, keyed by
+ * `<case_type>.<kind>`. Everything seeds as draft: publishing is an explicit admin act
+ * after the compliance gate clears.
+ */
+async function seedFees(
+  client: pg.PoolClient,
+  caseTypeIds: Map<string, string>,
+  tenantId: string
+): Promise<void> {
   for (const p of PLANS) {
     const caseTypeId = caseTypeIds.get(p.caseTypeKey)
-    if (!caseTypeId) throw new Error(`Plan references unknown case type "${p.caseTypeKey}".`)
+    if (!caseTypeId) throw new Error(`Fee references unknown case type "${p.caseTypeKey}".`)
 
-    // Never touch a live plan: 0003 freezes its price, and re-seeding must not attempt it.
+    const key = `${p.caseTypeKey}.${p.kind}`
     await client.query(
-      `INSERT INTO plans (case_type_id, kind, price_cents, name, status)
-       SELECT $1, $2::plan_kind, $3, $4, $5::plan_status
-       WHERE NOT EXISTS (
-         SELECT 1 FROM plans
-         WHERE case_type_id = $1 AND kind = $2::plan_kind AND price_cents = $3
-       )`,
-      [caseTypeId, p.kind, p.priceCents, p.name, p.status]
+      `INSERT INTO fee_schedule
+         (tenant_id, key, name, category, amount_cents, unit, case_type_id, status, is_placeholder)
+       SELECT $1, $2, $3, $4::fee_category, $5, $6::fee_unit, $7, $8::plan_status, TRUE
+        WHERE NOT EXISTS (
+          SELECT 1 FROM fee_schedule WHERE tenant_id = $1 AND key = $2
+        )`,
+      [
+        tenantId,
+        key,
+        p.name,
+        p.kind === 'monthly' ? 'subscription' : 'one_shot_document',
+        p.priceCents,
+        p.kind === 'monthly' ? 'month' : 'document',
+        caseTypeId,
+        p.status,
+      ]
     )
   }
-  console.log(`  plans: ${PLANS.length} (seeded as draft — publish from the admin pricing board)`)
+  console.log(`  fees: ${PLANS.length} (draft placeholders — publish from the admin pricing board)`)
 }
 
 export async function seed(): Promise<void> {
@@ -159,14 +204,15 @@ export async function seed(): Promise<void> {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+    const tenantId = await defaultTenantId(client)
     const jurisdictionIds = await seedJurisdictions(client)
     const caseTypeIds = await seedCaseTypes(client)
-    await seedWorkflows(client, caseTypeIds, jurisdictionIds)
-    await seedTemplates(client, caseTypeIds, jurisdictionIds)
-    await seedPlans(client, caseTypeIds)
+    await seedWorkflows(client, caseTypeIds, jurisdictionIds, tenantId)
+    await seedTemplates(client, caseTypeIds, jurisdictionIds, tenantId)
+    await seedFees(client, caseTypeIds, tenantId)
     await client.query('COMMIT')
     console.log('\nSeed complete.')
-    console.log('All legal content is seeded as UNVERIFIED and every plan as DRAFT.')
+    console.log('All legal content is seeded as UNVERIFIED and every fee as DRAFT.')
     console.log('Run `pnpm --filter @justicedesk/db verify-content` for the outstanding review list.')
   } catch (err) {
     await client.query('ROLLBACK')

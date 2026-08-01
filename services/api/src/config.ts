@@ -5,6 +5,9 @@ export interface ApiConfig {
   clerkSecretKey: string
   aiGatewayBaseUrl: string
   aiGatewayServiceToken: string
+  /** Shared token for service-to-service calls into svc-api (svc-voice, svc-referral). */
+  internalServiceToken: string
+  webBaseUrl: string
   minio: {
     endPoint: string
     port: number
@@ -29,6 +32,11 @@ export function loadConfig(): ApiConfig {
       process.env.AI_GATEWAY_SERVICE_TOKEN_VAULT_KEY ?? 'ai_gateway_service_token',
       envFallback
     ),
+    internalServiceToken: readSecret(
+      process.env.INTERNAL_SERVICE_TOKEN_VAULT_KEY ?? 'internal_service_token',
+      envFallback
+    ),
+    webBaseUrl: process.env.WEB_BASE_URL ?? 'http://localhost:3000',
     minio: {
       endPoint: process.env.MINIO_ENDPOINT ?? 'localhost',
       port: Number(process.env.MINIO_PORT ?? 9000),

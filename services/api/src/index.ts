@@ -21,6 +21,7 @@ import { loadConfig, type ApiConfig } from './config.js'
 import { createAdminRoutes } from './routes/admin.js'
 import { createBillingRoutes, createStripeWebhookRoute } from './routes/billing.js'
 import { createCaseRoutes } from './routes/cases.js'
+import { createPostCallRoutes } from './routes/postCall.js'
 import { createVault, type Vault } from './storage.js'
 
 const logger = createLogger('svc-api')
@@ -59,6 +60,18 @@ export function createApp(deps: AppDeps): express.Express {
 
   // Photographs of court papers arrive base64-encoded.
   app.use(express.json({ limit: '12mb' }))
+
+  // Post-call routes carry their own auth: a shared service token for svc-voice, and a
+  // capability token for the SMS landing page. Neither has a Clerk session, so they are
+  // mounted BEFORE the authenticated router rather than inside it.
+  app.use(
+    createPostCallRoutes({
+      db: deps.db,
+      config: deps.config,
+      internalToken: deps.config.internalServiceToken,
+      webBaseUrl: deps.config.webBaseUrl,
+    })
+  )
 
   const authenticated = express.Router()
   authenticated.use(requireAuth({ db: deps.db, clerkSecretKey: deps.config.clerkSecretKey }))
