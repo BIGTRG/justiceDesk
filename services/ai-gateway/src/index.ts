@@ -21,6 +21,7 @@ import { AnthropicGateway } from './anthropic.js'
 import { loadConfig } from './config.js'
 import { createClassifier, failClosed } from './guardrails/classifier.js'
 import { createRoutes } from './routes.js'
+import { selectTransport } from './transport.js'
 
 const logger = createLogger('svc-ai-gateway')
 
@@ -46,7 +47,19 @@ function main(): void {
   assertComplianceGate()
 
   const config = loadConfig()
-  const gateway = new AnthropicGateway(config)
+
+  // v2 rule 3: model calls route through the operator's shared legal gateway. Selection
+  // fails loudly rather than silently bypassing it — see transport.ts.
+  const selection = selectTransport(
+    process.env,
+    { anthropicApiKey: config.apiKey, gatewayToken: config.legalGatewayToken },
+    logger
+  )
+  if (selection.isDeviation) {
+    logger.warn('running in a non-compliant model transport mode', { banner: selection.banner })
+  }
+
+  const gateway = new AnthropicGateway(config, selection.transport)
   const classifier = failClosed(createClassifier(gateway))
 
   const app = createApp({ gateway, classifier, serviceToken: config.serviceToken })
@@ -55,6 +68,7 @@ function main(): void {
     logger.info('svc-ai-gateway listening', {
       port: config.port,
       model: config.model,
+      transport: selection.banner,
       compliance: complianceBanner(),
     })
   })

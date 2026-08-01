@@ -1,4 +1,4 @@
-import { readSecret } from '@justicedesk/shared'
+import { readSecret, readSecretOptional } from '@justicedesk/shared'
 
 /**
  * Model selection.
@@ -19,6 +19,11 @@ export interface GatewayConfig {
   maxTokens: number
   apiKey: string
   serviceToken: string
+  /**
+   * RBAC credential for the operator's shared legal gateway. Optional only so the
+   * service can still boot in the explicit direct-Anthropic development mode.
+   */
+  legalGatewayToken: string | null
   /** Hard ceiling on a single assistant turn, independent of model behaviour. */
   requestTimeoutMs: number
 }
@@ -33,6 +38,10 @@ export function loadConfig(): GatewayConfig {
     }),
     serviceToken: readSecret(
       process.env.AI_GATEWAY_SERVICE_TOKEN_VAULT_KEY ?? 'ai_gateway_service_token',
+      { allowEnvFallback: true }
+    ),
+    legalGatewayToken: readSecretOptional(
+      process.env.LEGAL_GATEWAY_TOKEN_VAULT_KEY ?? 'legal_gateway_token',
       { allowEnvFallback: true }
     ),
     requestTimeoutMs: Number(process.env.AI_GATEWAY_TIMEOUT_MS ?? 120_000),

@@ -10,6 +10,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { HttpError } from '@justicedesk/service-kit'
 import type { GatewayConfig } from './config.js'
+import type { ModelTransport, PolicyProfile } from './transport.js'
 
 export interface SystemBlock {
   type: 'text'
@@ -40,28 +41,25 @@ export interface ToolResult<T> {
   usage: ModelUsage
 }
 
-function usageOf(usage: Anthropic.Usage | undefined): ModelUsage {
-  return {
-    inputTokens: usage?.input_tokens ?? 0,
-    outputTokens: usage?.output_tokens ?? 0,
-    cacheReadTokens: usage?.cache_read_input_tokens ?? 0,
-    cacheCreationTokens: usage?.cache_creation_input_tokens ?? 0,
-  }
-}
-
 export class AnthropicGateway {
-  private readonly client: Anthropic
+  private readonly transport: ModelTransport
   private readonly config: GatewayConfig
+  private readonly profile: PolicyProfile
 
-  constructor(config: GatewayConfig, client?: Anthropic) {
+  /**
+   * Takes a `ModelTransport` rather than an Anthropic client so the shared legal gateway
+   * and the direct path are interchangeable — see transport.ts. Nothing above this class
+   * knows or cares which one is in use.
+   */
+  constructor(config: GatewayConfig, transport: ModelTransport, profile: PolicyProfile = 'prose_platform') {
     this.config = config
-    this.client =
-      client ??
-      new Anthropic({
-        apiKey: config.apiKey,
-        timeout: config.requestTimeoutMs,
-        maxRetries: 2,
-      })
+    this.transport = transport
+    this.profile = profile
+  }
+
+  /** A new instance bound to a different policy profile (svc-voice uses its own). */
+  withProfile(profile: PolicyProfile): AnthropicGateway {
+    return new AnthropicGateway(this.config, this.transport, profile)
   }
 
   /** A plain text completion. */
@@ -71,22 +69,18 @@ export class AnthropicGateway {
     maxTokens?: number
   }): Promise<TextResult> {
     try {
-      const response = await this.client.messages.create({
+      const response = await this.transport.send({
         model: this.config.model,
-        max_tokens: params.maxTokens ?? this.config.maxTokens,
+        maxTokens: params.maxTokens ?? this.config.maxTokens,
         // Adaptive thinking: the model decides how much reasoning a turn needs. Fixed
         // token budgets are deprecated on this model family.
         thinking: { type: 'adaptive' },
-        system: params.system as Anthropic.TextBlockParam[],
-        messages: params.messages as Anthropic.MessageParam[],
+        system: params.system,
+        messages: params.messages,
+        profile: this.profile,
       })
 
-      const text = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-        .map((b) => b.text)
-        .join('')
-
-      return { text, usage: usageOf(response.usage), stopReason: response.stop_reason ?? null }
+      return { text: response.text, usage: response.usage, stopReason: response.stopReason }
     } catch (err) {
       throw translateAnthropicError(err)
     }
@@ -108,24 +102,23 @@ export class AnthropicGateway {
     maxTokens?: number
   }): Promise<ToolResult<T>> {
     try {
-      const response = await this.client.messages.create({
+      const response = await this.transport.send({
         model: this.config.model,
-        max_tokens: params.maxTokens ?? 4096,
+        maxTokens: params.maxTokens ?? 4096,
         thinking: { type: 'adaptive' },
-        system: params.system as Anthropic.TextBlockParam[],
-        messages: params.messages as Anthropic.MessageParam[],
-        tools: [params.tool as Anthropic.Tool],
-        tool_choice: { type: 'tool', name: params.tool.name },
+        system: params.system,
+        messages: params.messages,
+        tools: [params.tool as unknown as Record<string, unknown>],
+        toolChoice: { type: 'tool', name: params.tool.name },
+        profile: this.profile,
       })
 
-      const call = response.content.find(
-        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === params.tool.name
-      )
+      const call = response.toolUses.find((t) => t.name === params.tool.name)
       if (!call) {
         throw HttpError.unavailable('The assistant did not return a usable answer. Please try again.')
       }
 
-      return { value: params.validate(call.input), usage: usageOf(response.usage) }
+      return { value: params.validate(call.input), usage: response.usage }
     } catch (err) {
       throw translateAnthropicError(err)
     }

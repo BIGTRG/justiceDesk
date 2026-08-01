@@ -91,20 +91,76 @@ cannot ship without it.
 
 ---
 
-## 3. Attorney marketplace fee structure
+## 3. Referral fee structure — SUPERSEDED BY v2, NOW LIVE FOR REVIEW
 
-**Not built.** Phase 1 is litigant-side only; S12–S14 are explicitly out of scope. There
-is no attorney-side code, no fee split, and no referral arrangement to review.
+> **This section previously read "Not built — nothing to review."** That was accurate for
+> Phase 1 and is no longer true. The v2 spec introduces paid attorney referral (rung 5),
+> which makes this the single largest new item in counsel's review. Rewritten accordingly.
 
-Two things counsel should still weigh now, because they constrain Phase 2:
+### What changed
 
-- The `attorney` role exists in the `users` enum and in `payments.kind`
-  (`attorney_review`). These are schema placeholders, unused by any route.
-- The UI offers attorney review in several places (the blocked-response message, the
-  chat screen). Today those are generic pointers to legal aid and the NC Bar referral
-  service, with no commercial relationship. **Any fee-bearing arrangement introduced later
-  changes the analysis of every one of those offers**, including whether they become
-  advertising.
+Phase 1 had no fee-bearing attorney arrangement of any kind. v2 introduces one:
+qualified leads are routed to the Ask Michael attorney network and the attorney pays a
+**flat per-qualified-lead advertising fee**, admin-set per practice area and county.
+
+### The consequence nobody should miss
+
+The Phase 1 UI **already offers attorney review in two places** — the blocked-response
+message (`UPL_BLOCK_MESSAGE`) and the chat screen. Today those are neutral pointers to
+legal aid and the NC Bar referral service, with no commercial relationship behind them.
+
+**The moment referral revenue exists, those offers change character.** The same words,
+unchanged, stop being a public-service pointer and start being the top of a paid funnel.
+Counsel needs to decide whether they then constitute attorney advertising or a referral
+solicitation, and whether they require disclosure at the point they are shown — not only
+at the point a lead is transmitted.
+
+This is not hypothetical or deferred. Those strings ship today.
+
+### What the build gets right by construction
+
+These are already structural, not aspirational, and counsel should confirm they are the
+correct posture:
+
+- **Flat fee, never contingent.** The `fee_schedule` category is `referral_lead` with
+  unit `lead`. There is no field anywhere in the schema for case value, recovery, or
+  attorney fee — the contingent structure is not merely disallowed, it is unrepresentable.
+- **Not-already-represented check** gates billing (v2 non-negotiable #3).
+- **TCPA express written consent** captured in-call before any drip, with global one-tap
+  opt-out (#4).
+- **Recording announced on every call**, one-party state notwithstanding, for multi-state
+  posture (#5).
+
+### What counsel must decide
+
+1. Do the two existing attorney-review offers become advertising once referral revenue
+   exists, and what disclosure do they then require *at the point of display*?
+2. Is the flat-fee-per-lead structure compliant under NC bar advertising rules — and is
+   "flat, never contingent on retention or fee amount" sufficient, or is more needed?
+3. Is the in-call referral disclosure script adequate, and must it be read, displayed,
+   or both?
+4. Does routing injury leads to an **incident-intelligence buyer network** (not attorneys)
+   carry a different analysis from attorney referral? The spec treats them in one breath;
+   they may not be one thing.
+5. Is per-county, per-practice-area price variation defensible, or does it create the
+   appearance of value-based pricing the flat-fee structure exists to avoid?
+6. **Court-records-triggered direct mail to defendants** (v2 §5B): several states
+   regulate solicitation of newly-served defendants specifically, including waiting
+   periods and required labelling. The spec already routes the letter copy to counsel;
+   the trigger feed and mail path must not be built send-capable before that clears.
+
+### Structural tension to settle now
+
+v2 non-negotiable #1 — "no call ends without a revenue event or a captured lead" — and
+the UPL guardrails pull against each other. An agent under standing instruction to always
+convert has structural pressure to keep answering questions it should decline and hand
+off instead.
+
+The guardrails fail closed and will withhold those answers, which will surface as
+free-window abandonment in the call-economics dashboard rather than as an error. Someone
+optimising that metric later could "fix" it by loosening layer 1. **Decide explicitly that
+the guardrail wins, and encode it as a test**, before `svc-voice` exists and the incentive
+is live.
 
 ---
 
@@ -149,6 +205,12 @@ Highest-risk items, in order:
   `ANTHROPIC_MODEL`. `claude-sonnet-5` is the current generation and is materially
   stronger at instruction-following, which is what layers 1 and 3 rest on. Worth
   benchmarking against the guardrail test set before launch.
+- **Shared legal gateway not yet connected.** v2 requires every model call to route
+  through the operator's gateway under the `prose_platform` policy profile. The transport
+  seam exists (`services/ai-gateway/src/transport.ts`) and the gateway is the default
+  path, but its wire contract is unverified — the host is unreachable from the build
+  machine. Until connected, running requires the explicit `ALLOW_DIRECT_ANTHROPIC`
+  deviation, logged at every boot. See HUMAN_REVIEW.md G-1.
 
 ---
 
@@ -158,7 +220,8 @@ The gate opens when someone sets `COMPLIANCE_REVIEW_COMPLETE=true`. Before that:
 
 - [ ] Ethics counsel has reviewed §1 (UPL guardrails) and the permitted-examples list
 - [ ] Ethics counsel has approved §2 (disclosure copy); `DISCLOSURE_COPY_STATUS` → `'approved'`
-- [ ] §3 confirmed as not-applicable for Phase 1, with Phase 2 constraints recorded
+- [ ] §3 referral fee structure reviewed — including whether the two attorney-review
+      offers already live in the UI become advertising once referral revenue exists
 - [ ] A licensed NC attorney has verified every item in §4; `verify-content` exits zero
 - [ ] §5 items resolved or accepted in writing
 - [ ] Written sign-off filed, naming the reviewer and date
