@@ -10,7 +10,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { HttpError } from '@justicedesk/service-kit'
 import type { GatewayConfig } from './config.js'
-import type { ModelTransport, PolicyProfile } from './transport.js'
+import type { AppIdentity, ModelTransport } from './transport.js'
 
 export interface SystemBlock {
   type: 'text'
@@ -44,21 +44,21 @@ export interface ToolResult<T> {
 export class AnthropicGateway {
   private readonly transport: ModelTransport
   private readonly config: GatewayConfig
-  private readonly profile: PolicyProfile
+  private readonly profile: AppIdentity
 
   /**
    * Takes a `ModelTransport` rather than an Anthropic client so the shared legal gateway
    * and the direct path are interchangeable — see transport.ts. Nothing above this class
    * knows or cares which one is in use.
    */
-  constructor(config: GatewayConfig, transport: ModelTransport, profile: PolicyProfile = 'prose_platform') {
+  constructor(config: GatewayConfig, transport: ModelTransport, profile: AppIdentity = 'justice_desk') {
     this.config = config
     this.transport = transport
     this.profile = profile
   }
 
   /** A new instance bound to a different policy profile (svc-voice uses its own). */
-  withProfile(profile: PolicyProfile): AnthropicGateway {
+  withProfile(profile: AppIdentity): AnthropicGateway {
     return new AnthropicGateway(this.config, this.transport, profile)
   }
 

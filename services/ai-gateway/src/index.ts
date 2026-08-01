@@ -52,7 +52,11 @@ function main(): void {
   // fails loudly rather than silently bypassing it — see transport.ts.
   const selection = selectTransport(
     process.env,
-    { anthropicApiKey: config.apiKey, gatewayToken: config.legalGatewayToken },
+    {
+      anthropicApiKey: config.apiKey,
+      gatewayToken: config.legalGatewayToken,
+      gatewayVoiceToken: config.legalGatewayVoiceToken,
+    },
     logger
   )
   if (selection.isDeviation) {

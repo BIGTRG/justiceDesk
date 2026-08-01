@@ -24,6 +24,8 @@ export interface GatewayConfig {
    * service can still boot in the explicit direct-Anthropic development mode.
    */
   legalGatewayToken: string | null
+  /** Separate key for svc-voice so its call volume cannot exhaust the web app's budget. */
+  legalGatewayVoiceToken: string | null
   /** Hard ceiling on a single assistant turn, independent of model behaviour. */
   requestTimeoutMs: number
 }
@@ -41,7 +43,11 @@ export function loadConfig(): GatewayConfig {
       { allowEnvFallback: true }
     ),
     legalGatewayToken: readSecretOptional(
-      process.env.LEGAL_GATEWAY_TOKEN_VAULT_KEY ?? 'legal_gateway_token',
+      process.env.LEGAL_GATEWAY_TOKEN_VAULT_KEY ?? 'legal_gateway_key',
+      { allowEnvFallback: true }
+    ),
+    legalGatewayVoiceToken: readSecretOptional(
+      process.env.LEGAL_GATEWAY_VOICE_TOKEN_VAULT_KEY ?? 'legal_gateway_voice_key',
       { allowEnvFallback: true }
     ),
     requestTimeoutMs: Number(process.env.AI_GATEWAY_TIMEOUT_MS ?? 120_000),

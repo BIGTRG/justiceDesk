@@ -15,39 +15,63 @@ call · **COUNSEL** needs Bannon.
 
 ## G — Gateway / infrastructure
 
-### G-1 · BLOCKING · Shared legal gateway wire contract
-The transport seam is built and the gateway is the default path
-(`services/ai-gateway/src/transport.ts`). Its contract is **assumed, not verified** —
-`10.2.0.2` is unreachable from the build machine (ping times out; ports 80/443/8080/4100
-refused), so nothing could be confirmed against the real service.
+### G-1 · RESOLVED · Gateway wire contract confirmed
+All nine questions answered by the operator and the code corrected to match. Verified
+differences from the assumed contract:
 
-Every assumption is marked `CONTRACT:` in that one file. Needed:
-
-| # | Question | Currently assumed |
+| # | Assumed | Actual |
 |---|---|---|
-| 1 | Base URL reachable from the app hosts | `LEGAL_GATEWAY_URL`, no default |
-| 2 | Route for a completion | `POST {base}/v1/messages` |
-| 3 | Auth scheme for the RBAC credential | `Authorization: Bearer <token>` |
-| 4 | How app identity is conveyed | `x-app-id` header + `app_id` in body |
-| 5 | How the policy profile is selected | `x-policy-profile` header + `policy_profile` in body |
-| 6 | Request body shape | Anthropic Messages-compatible |
-| 7 | Response body shape | Anthropic-compatible `content[]` + `usage` |
-| 8 | How a profile is *registered* (for `justice_desk_voice`) | unknown — no code written |
-| 9 | RBAC role/scope this app needs | unknown |
+| 1 | `http://10.2.0.2` | `http://10.2.0.2:3500` |
+| 2 | `POST /v1/messages` | **`POST /v1/chat/completions`** — OpenAI-style route, Anthropic-shaped body |
+| 3 | `Authorization: Bearer` | correct |
+| 4 | `x-app-id` header | **no header** — identity is which bearer key is sent |
+| 5 | `x-policy-profile` header | **no such thing** — no policy profiles exist |
+| 6 | Anthropic-compatible body | correct |
+| 7 | Anthropic-compatible response | correct |
+| 8 | profile registration API | **none** — add key to `/opt/claude-gateway/.env`, add app name to `APP_KEYS` and `RATE_LIMITS` in `main.py`, restart PM2 |
+| 9 | RBAC roles/scopes | **none** — every app gets identical access; only per-app rate limiting (60–150 req/min) |
 
-Until this lands, running requires `ALLOW_DIRECT_ANTHROPIC=true`, which is a logged
-deviation from v2 pre-flight rule 3 and must not ship.
+Pinned by tests in `services/ai-gateway/src/transport.test.ts` so a refactor cannot drift
+back to the assumed shape.
 
-### G-2 · DECISION · Does the gateway replace or precede the local guardrails?
-The build assumes **precede**: the gateway is an upstream policy layer and
-`applyGuardrails` still runs on everything returned. Two independent layers, deliberately.
-Confirm that is intended and that the local pipeline should not be removed as redundant.
+### G-1a · BLOCKING · Voice app key not yet issued
+`svc-voice` must run as its own registered app so its call volume cannot exhaust the web
+app's rate-limit budget. Needs, on the gateway:
 
-### G-3 · DECISION · `justice_desk_voice` profile contents
-Non-negotiable #6 requires voice to share the app's guardrail profile with no prompt
-drift. A separate profile name implies *some* difference (barge-in, spoken register,
-call-flow tools). Which parts may differ, and which must be byte-identical to
-`prose_platform`?
+1. `APP_KEY_JUSTICE_DESK_VOICE=<generated>` in `/opt/claude-gateway/.env`
+2. `"justice-desk-voice"` added to the `APP_KEYS` and `RATE_LIMITS` dicts in `main.py`
+3. PM2 restart
+4. The key placed in this platform's credential vault as `legal_gateway_voice_key`
+
+Until then the code registers only `justice_desk` and refuses voice calls rather than
+borrowing the web app's key.
+
+### G-2 · RESOLVED — and the answer changes the architecture
+The question was whether the gateway *replaces* or *precedes* the local guardrails.
+Neither: **the gateway enforces nothing.** It is an authenticated proxy with rate
+limiting. There is no upstream policy layer at all.
+
+So the guardrails in `svc-ai-gateway` are not defence in depth. They are the only defence.
+Nothing upstream catches unauthorized-practice output, an uncurated citation, or a missing
+disclosure. Recorded in `COMPLIANCE.md` §1 and in the transport file header, because an
+engineer who assumes an upstream policy layer exists might reasonably relax the local one.
+
+### G-3 · RESOLVED, with a consequence for svc-voice
+There is no `justice_desk_voice` policy profile to define — profiles do not exist. The
+name survives only as an app identity for rate-limit accounting.
+
+**The consequence is the important part.** v2 non-negotiable #6 requires voice to share
+the app's guardrail profile with no prompt drift. That cannot be satisfied at the gateway.
+It is satisfied only by topology:
+
+```
+svc-voice ──> svc-ai-gateway ──> legal gateway ──> Claude
+              (guardrails live here)   (proxy)
+```
+
+A voice agent wired straight to `10.2.0.2` would have **zero** guardrails — the proxy will
+faithfully relay an answer telling a caller what to do. This constrains build-order step 1
+and is not optional.
 
 ---
 

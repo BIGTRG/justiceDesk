@@ -39,6 +39,12 @@ env var.
 
 ## 1. UPL guardrails — for counsel's review
 
+> **These are the ONLY guardrails.** The operator's shared legal gateway, which the v2
+> spec described as enforcing a `prose_platform` policy profile, is in fact an
+> authenticated proxy: no profiles, no RBAC, no guardrails, only per-app rate limiting.
+> Nothing upstream catches unauthorized-practice output, an uncurated citation, or a
+> missing disclosure. Every layer below is load-bearing.
+
 Three layers. The deterministic and classifier layers can only **add** restrictions; a
 clean classifier verdict cannot clear a response the pattern layer blocked.
 
@@ -205,12 +211,16 @@ Highest-risk items, in order:
   `ANTHROPIC_MODEL`. `claude-sonnet-5` is the current generation and is materially
   stronger at instruction-following, which is what layers 1 and 3 rest on. Worth
   benchmarking against the guardrail test set before launch.
-- **Shared legal gateway not yet connected.** v2 requires every model call to route
-  through the operator's gateway under the `prose_platform` policy profile. The transport
-  seam exists (`services/ai-gateway/src/transport.ts`) and the gateway is the default
-  path, but its wire contract is unverified — the host is unreachable from the build
-  machine. Until connected, running requires the explicit `ALLOW_DIRECT_ANTHROPIC`
-  deviation, logged at every boot. See HUMAN_REVIEW.md G-1.
+- **Shared legal gateway is a proxy, not a policy engine.** Contract now confirmed and
+  implemented (`services/ai-gateway/src/transport.ts`). It provides centralised credential
+  custody, one auditable egress path, and per-app rate limiting — but no policy
+  enforcement whatsoever. This is why §1 above is the whole of the UPL defence. An
+  engineer who assumes an upstream policy layer exists might reasonably relax the local
+  one; nobody should.
+- **svc-voice must route through svc-ai-gateway, never directly to the gateway.** v2
+  non-negotiable #6 (voice shares the app's guardrail profile, no drift) can only be met
+  by topology, since there is no profile to share. A voice agent wired straight to the
+  proxy would have zero guardrails. See HUMAN_REVIEW.md G-3.
 
 ---
 
