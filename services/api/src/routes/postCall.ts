@@ -14,8 +14,11 @@
 import { asyncHandler, HttpError } from '@justicedesk/service-kit'
 import {
   checkLandingToken,
+  describeCoverage,
   hashLandingToken,
   issueLandingToken,
+  prefillCaseFromCall,
+  type CallFacts,
   type LandingOffer,
   type LandingView,
 } from '@justicedesk/shared'
@@ -221,6 +224,157 @@ export function createPostCallRoutes(deps: PostCallDeps): Router {
       )
 
       res.status(201).json({ url: session.url, amountCents: fee.amount_cents, name: fee.name })
+    })
+  )
+
+  /**
+   * Convert a call into a case (v2 rung 4).
+   *
+   * Non-negotiable #7 — the caller never repeats themselves. Everything gathered on the
+   * call is mapped onto the case and used to seed the guided interview, and the response
+   * carries a coverage report naming anything that did NOT transfer.
+   *
+   * That report is the point. "Lossless" asserted in a spec is worth nothing; a caller
+   * discovers a gap by being asked their hearing date twice. Here a gap is a field in the
+   * response, countable in a metric, visible before they ever see the portal.
+   */
+  internal.post(
+    '/v1/internal/calls/:callId/convert-to-case',
+    asyncHandler(async (req, res) => {
+      const { rows: calls } = await db.query(
+        `SELECT c.id, c.tenant_id, c.from_e164, c.detected_case_type, c.detected_county,
+                c.court_case_number, c.case_id,
+                s.summary_text, s.detected_case_type AS summary_case_type
+           FROM calls c
+           LEFT JOIN call_summaries s ON s.call_id = c.id
+          WHERE c.id = $1`,
+        [req.params.callId]
+      )
+      const call = calls[0]
+      if (!call) throw HttpError.notFound('No such call.')
+      if (call.case_id) {
+        // Already converted. Idempotent: a retried webhook must not create a second case.
+        res.status(200).json({ caseId: call.case_id, alreadyConverted: true })
+        return
+      }
+
+      const body = req.body as Record<string, unknown>
+      const facts: CallFacts = {
+        detectedCaseType: call.detected_case_type ?? call.summary_case_type,
+        county: call.detected_county,
+        courtCaseNumber: call.court_case_number,
+        narrative: call.summary_text,
+        callerPhone: call.from_e164,
+        ...(body.facts as Partial<CallFacts> | undefined),
+      }
+
+      const caseTypeKey = String(facts.detectedCaseType ?? '')
+      if (!caseTypeKey) {
+        throw HttpError.conflict('This call has no detected case type, so no case can be opened.')
+      }
+
+      const { rows: defs } = await db.query(
+        `SELECT wd.id, wd.definition, ct.id AS case_type_id, j.id AS jurisdiction_id
+           FROM workflow_definitions wd
+           JOIN case_types ct ON ct.id = wd.case_type_id
+           JOIN jurisdictions j ON j.id = wd.jurisdiction_id
+          WHERE ct.key = $1 AND wd.tenant_id = $2 AND wd.status = 'live'
+          LIMIT 1`,
+        [caseTypeKey, call.tenant_id]
+      )
+      const def = defs[0]
+      if (!def) {
+        // Expected while the compliance gate is closed: nothing is published.
+        throw HttpError.conflict(
+          `No published workflow for "${caseTypeKey}". The guidance for it is still under review.`
+        )
+      }
+
+      const prefill = prefillCaseFromCall(facts)
+      const definition = def.definition as { initialStageKey: string }
+
+      const client = await db.connect()
+      try {
+        await client.query('BEGIN')
+
+        // Lightweight account, keyed by the phone that called (v2 §4). Upgrades to a full
+        // portal account when they sign in with OTP.
+        const { rows: users } = await client.query<{ id: string }>(
+          `INSERT INTO users (tenant_id, phone) VALUES ($1, $2)
+           ON CONFLICT (tenant_id, phone) WHERE phone IS NOT NULL
+             DO UPDATE SET phone = EXCLUDED.phone
+           RETURNING id`,
+          [call.tenant_id, call.from_e164]
+        )
+        const userId = users[0]!.id
+
+        const { rows: created } = await client.query<{ id: string }>(
+          `INSERT INTO cases (tenant_id, user_id, case_type_id, jurisdiction_id,
+                              workflow_definition_id, role, status, current_stage_key,
+                              court_case_number, metadata)
+           VALUES ($1, $2, $3, $4, $5, $6::party_role, 'active', $7, $8, $9::jsonb)
+           RETURNING id`,
+          [
+            call.tenant_id,
+            userId,
+            def.case_type_id,
+            def.jurisdiction_id,
+            def.id,
+            prefill.role,
+            definition.initialStageKey,
+            facts.courtCaseNumber ?? null,
+            JSON.stringify({ ...prefill.metadata, completedStageKeys: [] }),
+          ]
+        )
+        const caseId = created[0]!.id
+
+        await client.query(
+          `INSERT INTO case_stage_events (case_id, stage_key, status) VALUES ($1, $2, 'current')`,
+          [caseId, definition.initialStageKey]
+        )
+
+        await client.query(`UPDATE calls SET case_id = $2, user_id = $3 WHERE id = $1`, [
+          call.id,
+          caseId,
+          userId,
+        ])
+
+        await client.query(
+          `INSERT INTO call_case_prefills (call_id, case_id, fields)
+           VALUES ($1, $2, $3::jsonb)
+           ON CONFLICT (call_id, case_id) DO NOTHING`,
+          [call.id, caseId, JSON.stringify(prefill.coverage)]
+        )
+
+        await recordAudit(client, {
+          actorId: null,
+          action: 'call.converted_to_case',
+          entity: 'cases',
+          entityId: caseId,
+          metadata: {
+            callId: call.id,
+            caseTypeKey,
+            transferred: prefill.coverage.transferred.length,
+            lost: prefill.coverage.dropped.filter((d) => d.reason !== 'no_destination').length,
+          },
+        })
+
+        await client.query('COMMIT')
+
+        res.status(201).json({
+          caseId,
+          userId,
+          role: prefill.role,
+          interviewAnswers: prefill.interviewAnswers,
+          coverage: prefill.coverage,
+          summary: describeCoverage(prefill.coverage),
+        })
+      } catch (err) {
+        await client.query('ROLLBACK')
+        throw err
+      } finally {
+        client.release()
+      }
     })
   )
 
