@@ -206,9 +206,9 @@ trigger; changing a price publishes a new plan row and supersedes the old one.
 | Seed / re-seed content | `pnpm --filter @justicedesk/db seed` |
 | Outstanding legal review items | `pnpm --filter @justicedesk/db verify-content` |
 | Start staging | `pm2 start ecosystem.config.js --env staging` |
-| Health | `GET :4101/healthz`, `:4102/healthz`, `:4103/healthz` |
+| Health | `GET :4101/healthz`, `:4102/healthz`, `:4103/healthz` (voice), `:4104/healthz` (referral), `:4105/healthz` (jobs) |
 | Readiness (checks DB) | `GET :4101/readyz` |
-| Metrics | `GET :4101/metrics`, `:4102/metrics`, `:4103/metrics` |
+| Metrics | `GET :4101/metrics`, `:4102/metrics`, `:4103/metrics`, `:4104/metrics`, `:4105/metrics` |
 
 Migrations are checksummed. Editing an applied migration is a hard error — add a new one.
 

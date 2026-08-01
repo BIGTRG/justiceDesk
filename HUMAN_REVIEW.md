@@ -148,6 +148,47 @@ ever examined. Cheap to change now, expensive later.
 
 ---
 
+## V — Voice (build-order step 1)
+
+### V-1 · DECISION + COUNSEL · Does the paywall ever get waived?
+The spec is unambiguous: three minutes free, then pay. Implemented as written.
+
+But the caller whose hearing is tomorrow, phoning at 11pm, is cut off at three minutes
+unless they pay — and that caller is the one the product exists for. The state machine
+carries a `waivePaywall(snapshot)` hook that **defaults to never waiving**, so no policy
+has been invented; the mechanism simply exists so a decision can be implemented without a
+rewrite.
+
+Needs an explicit call: never waive, waive on an imminent deadline, waive on a detected
+crisis, or something else. This interacts directly with `COMPLIANCE.md` §3's conversion-
+pressure item.
+
+### V-2 · BLOCKING (COUNSEL) · Spanish scripts are machine-drafted
+`services/voice/src/scripts.ts` carries Spanish for every line, translated from the
+English without review. A mistranslated recording announcement or TCPA consent is a
+defective disclosure, not a cosmetic bug. The Spanish line must not open until these are
+professionally translated and reviewed. Tracked with L-2.
+
+### V-3 · DECISION · Metered billing rounds down
+Partial minutes are free: 61 seconds bills one minute, not two. Rounding up is defensible
+and disclosed, but reads as sharp practice to someone already being sued over money.
+Confirm, or change `meteredChargeCents`.
+
+### V-4 · DECISION · Two outcomes the spec's list omits
+The spec lists `doc | subscription | referral | drip | none`. The implementation adds
+`abandoned` (hung up inside the free window) and `transferred`, because non-negotiable #1
+requires every call to carry an outcome and folding those into `none` would inflate the
+no-capture bucket with people who were never asked for anything — and would make
+free-window abandonment, a metric the spec explicitly wants, unmeasurable.
+
+### V-5 · BLOCKING · svc-voice cannot scale past one process yet
+Live calls are held in process memory keyed by Twilio call SID, so PM2 runs it
+single-instance. Clustering would route a mid-call webhook to a worker that has never
+heard of the call. Moving session state to Redis is the prerequisite for horizontal
+scale, and should happen before any volume.
+
+---
+
 ## Resolved during this build
 
 - **Multi-tenancy retrofit** — done, `0004_multi_tenancy.sql`. Applied and verified

@@ -149,7 +149,8 @@ async function main(): Promise<void> {
   const metricsApp = express()
   metricsApp.get('/metrics', metricsHandler)
   metricsApp.get('/healthz', (_req, res) => res.json({ ok: true, service: 'svc-jobs' }))
-  const metricsPort = Number(process.env.JOBS_METRICS_PORT ?? 4103)
+  // 4103 and 4104 belong to svc-voice and svc-referral (v2 §3). Jobs metrics moved to 4105.
+  const metricsPort = Number(process.env.JOBS_METRICS_PORT ?? 4105)
   metricsApp.listen(metricsPort)
 
   logger.info('svc-jobs started', {

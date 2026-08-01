@@ -29,6 +29,21 @@ module.exports = {
       },
     },
     {
+      name: 'justicedesk-voice',
+      cwd: './services/voice',
+      script: 'dist/index.js',
+      // Single instance: live calls are held in process memory keyed by Twilio call SID.
+      // Clustering would route a mid-call webhook to a worker that has never heard of it.
+      // Moving sessions to Redis is the prerequisite for scaling this out.
+      instances: 1,
+      exec_mode: 'fork',
+      max_memory_restart: '1G',
+      env_staging: {
+        NODE_ENV: 'staging',
+        VOICE_PORT: 4103,
+      },
+    },
+    {
       name: 'justicedesk-jobs',
       cwd: './services/jobs',
       script: 'dist/index.js',
@@ -39,6 +54,7 @@ module.exports = {
       max_memory_restart: '1G',
       env_staging: {
         NODE_ENV: 'staging',
+        JOBS_METRICS_PORT: 4105,
       },
     },
     {
