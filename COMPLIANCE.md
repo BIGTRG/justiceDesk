@@ -211,6 +211,9 @@ Highest-risk items, in order:
   `ANTHROPIC_MODEL`. `claude-sonnet-5` is the current generation and is materially
   stronger at instruction-following, which is what layers 1 and 3 rest on. Worth
   benchmarking against the guardrail test set before launch.
+- **Gateway contract verified** (2026-08-01). All eight checks in
+  `scripts/verify-gateway.sh` pass against the live service. Must be run from a routed
+  host; a development machine cannot reach it.
 - **Shared legal gateway is a proxy, not a policy engine.** Contract now confirmed and
   implemented (`services/ai-gateway/src/transport.ts`). It provides centralised credential
   custody, one auditable egress path, and per-app rate limiting — but no policy

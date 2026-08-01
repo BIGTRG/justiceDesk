@@ -45,12 +45,29 @@ The key was supplied in a chat transcript, which is not a secret store. It shoul
 regenerated on the gateway and replaced in the vault. Nothing in the codebase needs to
 change — the key is read from the vault at boot, never from a literal.
 
-### G-1c · BLOCKING (verification) · Contract unverified against the live gateway
-The contract is implemented from the operator's written answers, not from a live call:
-`10.2.0.2` is unreachable from the development machine, which is not on the private
-network. `scripts/verify-gateway.sh` checks all five assumptions and must be run **on a
-host with a route** before real traffic. Until it passes, "wired up" means "written to
-spec", not "confirmed working".
+### G-1c · RESOLVED · Contract verified against the live gateway
+`scripts/verify-gateway.sh` passes all eight checks on the legal server, which reaches the
+gateway via `enp7s0` (10.2.0.4/32). Verified: reachability, the OpenAI-style route,
+bearer auth (and that a bad key is rejected), Anthropic-shaped responses, forced tool
+calls, image blocks, and `cache_control`.
+
+Still not reachable from a development machine — the script must run on a routed host.
+
+### G-1d · RESOLVED — but read this before touching the gateway
+**The gateway silently dropped `tools` and `tool_choice`.** Requests returned HTTP 200
+with a plain text answer instead of a `tool_use` block. Fixed on the gateway side; the
+script now covers it.
+
+Recording it because the failure mode is badly non-obvious. Three paths use forced tool
+calls — intake classification, summons OCR, and the **UPL classifier**. `callTool` throws
+when no tool comes back, the classifier is wrapped in `failClosed`, and fail-closed
+converts an error into `crossesLine: true`. So dropped tools do not degrade one feature:
+**every assistant response is blocked**, and the logs read as a classifier fault rather
+than a gateway one.
+
+The guardrails behaved correctly — they failed toward silence rather than toward
+unguarded legal advice. But anyone debugging that outage would have started in the wrong
+service. Check 4 in `verify-gateway.sh` now catches it in seconds.
 
 ### G-2 · RESOLVED — and the answer changes the architecture
 The question was whether the gateway *replaces* or *precedes* the local guardrails.

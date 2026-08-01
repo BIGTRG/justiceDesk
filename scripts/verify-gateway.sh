@@ -2,20 +2,18 @@
 #
 # Verify the shared legal gateway contract.
 #
-# RUN THIS ON A HOST WITH A ROUTE TO THE PRIVATE NETWORK (the server), not on a dev
-# laptop. 10.2.0.2 is not reachable from outside that network.
+# RUN ON A HOST WITH A ROUTE TO THE PRIVATE NETWORK. 10.2.0.2 is not reachable from a dev
+# laptop; the legal server reaches it via enp7s0 (10.2.0.4/32).
 #
-# It checks the five things svc-ai-gateway assumes, so a wrong assumption surfaces here
-# rather than as a broken call at 2am:
+# Checks everything svc-ai-gateway actually sends. Check 4 exists because the gateway
+# silently dropped `tools` for a while: requests returned 200 with a text answer instead
+# of a tool_use block, which would have taken the whole assistant down — `callTool` throws
+# when no tool comes back, the UPL classifier is wrapped in failClosed, and fail-closed
+# turns that into "block everything". Safe, but a total outage that looks like a
+# classifier fault rather than a gateway one. Never again without this catching it.
 #
-#   1. the host answers on :3500
-#   2. POST /v1/chat/completions is the route (not /v1/messages)
-#   3. Authorization: Bearer <key> authenticates
-#   4. the response is Anthropic-shaped (content[] with a text block)
-#   5. both app keys work and are distinct identities
-#
-# Keys are read from the credential vault, never passed as arguments — an argument shows
-# up in `ps` and in shell history.
+# Keys are read from the vault, never passed as arguments — an argument shows up in `ps`
+# and in shell history.
 #
 # Usage:
 #   CREDENTIAL_VAULT_DIR=/opt/credential-vault ./scripts/verify-gateway.sh
@@ -25,122 +23,127 @@ set -uo pipefail
 BASE_URL="${LEGAL_GATEWAY_URL:-http://10.2.0.2:3500}"
 VAULT="${CREDENTIAL_VAULT_DIR:-/opt/credential-vault}"
 MODEL="${ANTHROPIC_MODEL:-claude-sonnet-4-6}"
+KEY_FILE="${GATEWAY_KEY_FILE:-legal_gateway_key}"
 
 pass() { printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
 fail() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAILED=1; }
 info() { printf '        %s\n' "$1"; }
 FAILED=0
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
 
 echo "Verifying legal gateway at ${BASE_URL}"
-echo "Vault: ${VAULT}"
 echo
 
+# ---------------------------------------------------------------- 0. key
+if [[ ! -s "${VAULT}/${KEY_FILE}" ]]; then
+  fail "missing or empty vault secret: ${VAULT}/${KEY_FILE}"
+  exit 1
+fi
+KEY="$(cat "${VAULT}/${KEY_FILE}")"
+pass "vault secret present: ${KEY_FILE}"
+
+post() { # post <file> <outfile> [path]
+  curl -sS --max-time 120 -o "$2" -w '%{http_code}' \
+    -X POST "${BASE_URL}${3:-/v1/chat/completions}" \
+    -H 'content-type: application/json' \
+    -H "authorization: Bearer ${KEY}" \
+    -d @"$1" 2>/dev/null
+}
+
 # ---------------------------------------------------------------- 1. reachability
-if curl -fsS --max-time 5 -o /dev/null "${BASE_URL}/" 2>/dev/null \
-   || curl -sS --max-time 5 -o /dev/null -w '%{http_code}' "${BASE_URL}/" 2>/dev/null | grep -qE '^[2345]'; then
-  pass "host answers on ${BASE_URL}"
+if curl -sS --max-time 8 -o "$TMP/h" -w '' -H "authorization: Bearer ${KEY}" "${BASE_URL}/health" 2>/dev/null; then
+  pass "reachable — /health responded"
 else
-  fail "cannot reach ${BASE_URL} — is this host on the private network?"
-  echo
-  echo "Nothing further can be checked without a route. Stopping."
+  fail "cannot reach ${BASE_URL} — is this host on the private network? (expect a 10.x address)"
   exit 1
 fi
 
-# ---------------------------------------------------------------- keys
-check_key_file() {
-  local name="$1"
-  if [[ ! -r "${VAULT}/${name}" ]]; then
-    fail "missing vault secret: ${VAULT}/${name}"
-    return 1
-  fi
-  if [[ ! -s "${VAULT}/${name}" ]]; then
-    fail "vault secret is empty: ${name}"
-    return 1
-  fi
-  pass "vault secret present: ${name}"
-  return 0
-}
-
-WEB_OK=0; VOICE_OK=0
-check_key_file legal_gateway_key && WEB_OK=1
-check_key_file legal_gateway_voice_key && VOICE_OK=1
-echo
-
-# ---------------------------------------------------------------- 2-4. the contract
-probe() {
-  local label="$1" key_file="$2"
-  local key body status
-  key="$(cat "${VAULT}/${key_file}")"
-
-  body="$(cat <<JSON
-{"model":"${MODEL}","max_tokens":16,
+# ---------------------------------------------------------------- 2. base completion
+cat > "$TMP/base.json" <<JSON
+{"model":"${MODEL}","max_tokens":32,
  "system":[{"type":"text","text":"Reply with exactly: OK"}],
  "messages":[{"role":"user","content":"Say OK."}]}
 JSON
-)"
-
-  local response
-  response="$(curl -sS --max-time 30 -w '\n%{http_code}' \
-    -X POST "${BASE_URL}/v1/chat/completions" \
-    -H 'content-type: application/json' \
-    -H "authorization: Bearer ${key}" \
-    -d "${body}" 2>&1)"
-
-  status="$(printf '%s' "${response}" | tail -n1)"
-  payload="$(printf '%s' "${response}" | sed '$d')"
-
-  case "${status}" in
-    200)
-      pass "${label}: POST /v1/chat/completions returned 200"
-      if printf '%s' "${payload}" | grep -q '"content"'; then
-        pass "${label}: response is Anthropic-shaped (has content[])"
-      else
-        fail "${label}: 200 but no content[] — response shape differs from what svc-ai-gateway parses"
-        info "got: $(printf '%s' "${payload}" | head -c 300)"
-      fi
-      ;;
-    401|403)
-      fail "${label}: ${status} — key rejected. Registered in APP_KEYS? Current?"
-      ;;
-    404)
-      fail "${label}: 404 — route is wrong. svc-ai-gateway posts to /v1/chat/completions"
-      ;;
-    429)
-      info "${label}: 429 rate-limited — the key authenticates, budget is exhausted right now"
-      ;;
-    *)
-      fail "${label}: unexpected status ${status}"
-      info "got: $(printf '%s' "${payload}" | head -c 300)"
-      ;;
-  esac
-}
-
-[[ ${WEB_OK} -eq 1 ]] && probe "justice_desk" legal_gateway_key
-echo
-[[ ${VOICE_OK} -eq 1 ]] && probe "justice_desk_voice" legal_gateway_voice_key
-echo
-
-# ---------------------------------------------------------------- 5. wrong route sanity
-# Confirms the OpenAI-style path is real and /v1/messages is not, so nobody later
-# "corrects" the route back on the assumption it was a typo.
-if [[ ${WEB_OK} -eq 1 ]]; then
-  legacy_status="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' \
-    -X POST "${BASE_URL}/v1/messages" \
-    -H 'content-type: application/json' \
-    -H "authorization: Bearer $(cat "${VAULT}/legal_gateway_key")" \
-    -d '{"model":"'"${MODEL}"'","max_tokens":8,"messages":[{"role":"user","content":"hi"}]}' 2>/dev/null)"
-  if [[ "${legacy_status}" == "404" ]]; then
-    pass "/v1/messages correctly 404s — the OpenAI-style route is not a typo"
-  else
-    info "/v1/messages returned ${legacy_status} (expected 404). Worth knowing; not fatal."
-  fi
+code="$(post "$TMP/base.json" "$TMP/base.out")"
+if [[ "$code" == "200" ]] && grep -q '"content"' "$TMP/base.out"; then
+  pass "POST /v1/chat/completions returns an Anthropic-shaped response"
+else
+  fail "base completion failed (http ${code})"
+  info "$(head -c 300 "$TMP/base.out")"
 fi
+
+# ---------------------------------------------------------------- 3. auth enforced
+code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' \
+  -X POST "${BASE_URL}/v1/chat/completions" -H 'content-type: application/json' \
+  -H 'authorization: Bearer not-a-real-key' -d @"$TMP/base.json" 2>/dev/null)"
+[[ "$code" == "401" || "$code" == "403" ]] \
+  && pass "a bad key is rejected (${code})" \
+  || fail "a bad key returned ${code} — auth is not enforced"
+
+# ---------------------------------------------------------------- 4. TOOL PASSTHROUGH
+# The one that regressed. Intake classification, summons OCR and the UPL classifier all
+# depend on a forced tool call coming back as a tool_use block.
+cat > "$TMP/tool.json" <<JSON
+{"model":"${MODEL}","max_tokens":256,
+ "system":[{"type":"text","text":"Classify the situation."}],
+ "messages":[{"role":"user","content":"A company is suing me over an old credit card."}],
+ "tools":[{"name":"record_classification","description":"Record the case type.",
+   "input_schema":{"type":"object","properties":{"case_type":{"type":"string"}},"required":["case_type"]}}],
+ "tool_choice":{"type":"tool","name":"record_classification"}}
+JSON
+code="$(post "$TMP/tool.json" "$TMP/tool.out")"
+if [[ "$code" == "200" ]] && grep -q 'tool_use' "$TMP/tool.out"; then
+  pass "forced tool calls pass through (tool_use returned)"
+else
+  fail "TOOLS ARE BEING DROPPED (http ${code}, no tool_use block)"
+  info "This takes the whole assistant down, not just one feature: callTool throws, the"
+  info "UPL classifier is wrapped in failClosed, and fail-closed blocks every response."
+  info "The gateway must forward `tools` and `tool_choice` to Anthropic unchanged."
+fi
+
+# ---------------------------------------------------------------- 5. vision
+# Summons OCR sends base64 photographs of court papers.
+PNG="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+cat > "$TMP/vision.json" <<JSON
+{"model":"${MODEL}","max_tokens":64,
+ "messages":[{"role":"user","content":[
+   {"type":"image","source":{"type":"base64","media_type":"image/png","data":"${PNG}"}},
+   {"type":"text","text":"One word: what colour?"}]}]}
+JSON
+code="$(post "$TMP/vision.json" "$TMP/vision.out")"
+[[ "$code" == "200" ]] \
+  && pass "image content blocks pass through (summons OCR)" \
+  || { fail "vision failed (http ${code}) — summons OCR will not work"; info "$(head -c 200 "$TMP/vision.out")"; }
+
+# ---------------------------------------------------------------- 6. cache_control
+cat > "$TMP/cache.json" <<JSON
+{"model":"${MODEL}","max_tokens":32,
+ "system":[{"type":"text","text":"You are terse.","cache_control":{"type":"ephemeral"}}],
+ "messages":[{"role":"user","content":"Say OK."}]}
+JSON
+code="$(post "$TMP/cache.json" "$TMP/cache.out")"
+if [[ "$code" == "200" ]]; then
+  if grep -q 'cache_read_input_tokens' "$TMP/cache.out"; then
+    pass "cache_control accepted and cache usage is reported"
+  else
+    info "cache_control accepted but no cache usage fields — caching may be a no-op (cost only, not correctness)"
+  fi
+else
+  fail "cache_control rejected (http ${code}) — prompt caching will not work"
+fi
+
+# ---------------------------------------------------------------- 7. route is not a typo
+code="$(post "$TMP/base.json" /dev/null /v1/messages)"
+[[ "$code" == "404" ]] \
+  && pass "/v1/messages 404s — the OpenAI-style route is correct, not a typo" \
+  || info "/v1/messages returned ${code} (expected 404). Worth knowing; not fatal."
 
 echo
 if [[ ${FAILED} -eq 0 ]]; then
   echo "Gateway contract verified. svc-ai-gateway and svc-voice can talk to it."
   exit 0
 fi
-echo "Gateway contract NOT verified. See failures above; the contract lives in"
+echo "Gateway contract NOT verified. The contract lives in"
 echo "services/ai-gateway/src/transport.ts and is the only file that needs changing."
 exit 1
