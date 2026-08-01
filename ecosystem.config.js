@@ -44,6 +44,18 @@ module.exports = {
       },
     },
     {
+      name: 'justicedesk-referral',
+      cwd: './services/referral',
+      script: 'dist/index.js',
+      instances: 2,
+      exec_mode: 'cluster',
+      max_memory_restart: '512M',
+      env_staging: {
+        NODE_ENV: 'staging',
+        REFERRAL_PORT: 4104,
+      },
+    },
+    {
       name: 'justicedesk-jobs',
       cwd: './services/jobs',
       script: 'dist/index.js',

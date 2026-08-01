@@ -14,6 +14,11 @@ court-ready filings.
 > counsel review. The gate is enforced in code — services refuse to boot in a
 > production/live configuration until it clears — and **all legal content is currently
 > unverified**.
+>
+> v2 adds three things counsel has not yet reviewed: paid attorney referral, TCPA drip
+> messaging, and the voice paywall. No referral fee amounts are published, no drip copy is
+> approved, and svc-voice refuses to answer calls with draft scripts once the gate opens.
+> See [`HUMAN_REVIEW.md`](./HUMAN_REVIEW.md) for the 22 open items.
 
 ---
 
@@ -35,10 +40,12 @@ template — no code change.
 ## Layout
 
 ```
-apps/web              Next.js 14 — S1–S11, S15, admin console
-services/api          svc-api      :4101  the only public service
-services/ai-gateway   svc-ai-gateway :4102  internal; wraps Anthropic + UPL guardrails
-services/jobs         svc-jobs           BullMQ workers: reminders, rendering
+apps/web              Next.js 14 — three-door front door, case portal, admin console
+services/api          svc-api        :4101  the only public service
+services/ai-gateway   svc-ai-gateway :4102  internal; wraps the legal gateway + UPL guardrails
+services/voice        svc-voice      :4103  Twilio call front door, paywall state machine
+services/referral     svc-referral   :4104  qualified-lead routing and flat-fee billing
+services/jobs         svc-jobs       :4105  BullMQ workers: reminders, rendering, drip
 packages/shared       state machine, deadline calculator, UPL patterns, citation allowlist
 packages/service-kit  logging, metrics, HTTP plumbing, the compliance interlock
 db                    migrations, NC seed content, migration/seed runners

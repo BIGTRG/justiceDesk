@@ -19,6 +19,7 @@ import { AiGatewayClient } from './aiClient.js'
 import { requireAuth, requireRole } from './auth.js'
 import { loadConfig, type ApiConfig } from './config.js'
 import { createAdminRoutes } from './routes/admin.js'
+import { createAnalyticsRoutes } from './routes/analytics.js'
 import { createBillingRoutes, createStripeWebhookRoute } from './routes/billing.js'
 import { createCaseRoutes } from './routes/cases.js'
 import { createPostCallRoutes } from './routes/postCall.js'
@@ -78,6 +79,7 @@ export function createApp(deps: AppDeps): express.Express {
   authenticated.use(createCaseRoutes(deps))
   authenticated.use(createBillingRoutes({ db: deps.db, config: deps.config }))
   authenticated.use('/v1/admin', requireRole('admin'), createAdminRoutes(deps.db))
+  authenticated.use('/v1/admin/analytics', requireRole('admin'), createAnalyticsRoutes(deps.db))
   app.use(authenticated)
 
   app.use(notFoundHandler())
