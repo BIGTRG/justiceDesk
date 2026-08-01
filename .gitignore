@@ -1,0 +1,32 @@
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Environment / secrets — secrets come from /opt/credential-vault, never the repo
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Runtime
+logs/
+*.log
+pm2.log
+.pm2/
+
+# Test artifacts
+playwright-report/
+test-results/
+.playwright/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local infra volumes
+.docker-data/

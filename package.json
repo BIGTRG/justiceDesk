@@ -1,0 +1,32 @@
+{
+  "name": "justicedesk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Guided self-help litigation platform for self-represented litigants (Phase 1: North Carolina)",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@11.6.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,sql}\"",
+    "test": "pnpm -r test",
+    "test:e2e": "playwright test",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "db:migrate": "pnpm --filter @justicedesk/api migrate",
+    "db:seed": "pnpm --filter @justicedesk/api seed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-paper text-ink antialiased;
+  }
+  /* Visible focus is not optional — many users here navigate by keyboard or screen reader. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-2;
+  }
+}
+
+@layer components {
+  .container-readable {
+    @apply mx-auto w-full max-w-readable px-4;
+  }
+  .btn {
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg px-5 py-3
+           text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-dark;
+  }
+  .btn-secondary {
+    @apply btn border border-paper-edge bg-white text-ink hover:bg-paper-sunk;
+  }
+  .card {
+    @apply rounded-xl border border-paper-edge bg-white p-5;
+  }
+  .field {
+    @apply w-full rounded-lg border border-paper-edge px-4 py-3 text-base
+           focus:border-brand focus:outline-none;
+  }
+  .label {
+    @apply mb-2 block text-base font-semibold text-ink;
+  }
+}

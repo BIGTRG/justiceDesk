@@ -1,0 +1,20 @@
+packages:
+  - 'apps/*'
+  - 'services/*'
+  - 'packages/*'
+  - 'db'
+# Postinstall scripts are denied by default — a transitive dependency running arbitrary
+# code at install time is the cheapest supply-chain foothold there is, and neither of
+# these needs it.
+#
+#   @clerk/shared    — postinstall is housekeeping; the SDK works without it.
+#   msgpackr-extract — optional native accelerator for BullMQ's serialiser. Without it,
+#                      msgpackr falls back to its pure-JS path. Correctness is unaffected.
+#
+# Revisit only with a measured reason, and record it here.
+allowBuilds:
+  '@clerk/shared': false
+  msgpackr-extract: false
+  # unrs-resolver — native binary for the ESLint import resolver, dev-time only.
+  #                 Falls back to the JS resolver.
+  unrs-resolver: false

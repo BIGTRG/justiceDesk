@@ -1,0 +1,9 @@
+# Normalise to LF in the repository. The team is on Windows and the servers are Linux;
+# without this, CRLF leaks into shell scripts and SQL and breaks them on the host.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.ico binary
+pnpm-lock.yaml -diff

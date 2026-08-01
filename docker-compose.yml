@@ -1,0 +1,51 @@
+# Local development infrastructure only. Production runs self-hosted Postgres/Redis/MinIO
+# provisioned outside this file; nothing here should be pointed at a production host.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: justicedesk-postgres
+    environment:
+      POSTGRES_USER: justicedesk
+      POSTGRES_PASSWORD: justicedesk_local_dev
+      POSTGRES_DB: justicedesk
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./.docker-data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U justicedesk']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: justicedesk-redis
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - ./.docker-data/redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: justicedesk-minio
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: justicedesk
+      MINIO_ROOT_PASSWORD: justicedesk_local_dev
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - ./.docker-data/minio:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 10
