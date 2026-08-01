@@ -34,17 +34,23 @@ differences from the assumed contract:
 Pinned by tests in `services/ai-gateway/src/transport.test.ts` so a refactor cannot drift
 back to the assumed shape.
 
-### G-1a · BLOCKING · Voice app key not yet issued
-`svc-voice` must run as its own registered app so its call volume cannot exhaust the web
-app's rate-limit budget. Needs, on the gateway:
+### G-1a · RESOLVED (key issued) · Voice app registered
+`justice-desk-voice` is registered on the gateway at 120 req/min and the key is in the
+vault as `legal_gateway_voice_key`. svc-voice declares `x-app-surface: voice`, and
+svc-ai-gateway runs those calls under the `justice_desk_voice` identity — rate-limit
+isolation only, identical guardrail pipeline.
 
-1. `APP_KEY_JUSTICE_DESK_VOICE=<generated>` in `/opt/claude-gateway/.env`
-2. `"justice-desk-voice"` added to the `APP_KEYS` and `RATE_LIMITS` dicts in `main.py`
-3. PM2 restart
-4. The key placed in this platform's credential vault as `legal_gateway_voice_key`
+### G-1b · ACTION REQUIRED · Rotate the voice key
+The key was supplied in a chat transcript, which is not a secret store. It should be
+regenerated on the gateway and replaced in the vault. Nothing in the codebase needs to
+change — the key is read from the vault at boot, never from a literal.
 
-Until then the code registers only `justice_desk` and refuses voice calls rather than
-borrowing the web app's key.
+### G-1c · BLOCKING (verification) · Contract unverified against the live gateway
+The contract is implemented from the operator's written answers, not from a live call:
+`10.2.0.2` is unreachable from the development machine, which is not on the private
+network. `scripts/verify-gateway.sh` checks all five assumptions and must be run **on a
+host with a route** before real traffic. Until it passes, "wired up" means "written to
+spec", not "confirmed working".
 
 ### G-2 · RESOLVED — and the answer changes the architecture
 The question was whether the gateway *replaces* or *precedes* the local guardrails.

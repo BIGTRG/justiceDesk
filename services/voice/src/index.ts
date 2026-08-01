@@ -243,7 +243,13 @@ async function main(): Promise<void> {
       ask: async ({ question }) => {
         const response = await fetch(`${aiGatewayUrl}/v1/assistant/message`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-service-token': aiGatewayToken },
+          headers: {
+            'content-type': 'application/json',
+            'x-service-token': aiGatewayToken,
+            // Runs this call under the justice_desk_voice gateway identity, so voice
+            // volume cannot exhaust the web app's rate-limit budget. Same guardrails.
+            'x-app-surface': 'voice',
+          },
           body: JSON.stringify({ question, grounding: {} }),
         })
         if (!response.ok) throw HttpError.unavailable('The assistant is unavailable.')

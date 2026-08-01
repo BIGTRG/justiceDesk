@@ -205,6 +205,7 @@ trigger; changing a price publishes a new plan row and supersedes the old one.
 | Apply migrations | `pnpm --filter @justicedesk/db migrate` |
 | Seed / re-seed content | `pnpm --filter @justicedesk/db seed` |
 | Outstanding legal review items | `pnpm --filter @justicedesk/db verify-content` |
+| Verify the legal gateway contract | `./scripts/verify-gateway.sh` (run on a host with a route to 10.2.0.2) |
 | Start staging | `pm2 start ecosystem.config.js --env staging` |
 | Health | `GET :4101/healthz`, `:4102/healthz`, `:4103/healthz` (voice), `:4104/healthz` (referral), `:4105/healthz` (jobs) |
 | Readiness (checks DB) | `GET :4101/readyz` |

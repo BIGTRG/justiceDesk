@@ -33,6 +33,21 @@ export interface RouteDeps {
   serviceToken: string
 }
 
+/**
+ * Which surface a request came from.
+ *
+ * svc-voice declares itself with `x-app-surface: voice` so its model calls run under the
+ * `justice_desk_voice` gateway identity. That is purely rate-limit isolation — a busy
+ * call queue must not exhaust the web app's 120 req/min budget. It is NOT a different
+ * guardrail path: both surfaces run the identical pipeline, which is how non-negotiable
+ * #6 (no prompt drift between voice and app) is actually held.
+ */
+function gatewayForRequest(deps: RouteDeps, req: { header(name: string): string | undefined }): AnthropicGateway {
+  return req.header('x-app-surface') === 'voice'
+    ? deps.gateway.withProfile('justice_desk_voice')
+    : deps.gateway
+}
+
 /** Require the shared service token. Rejects browsers and anything else public. */
 export function serviceAuth(expected: string): RequestHandler {
   return (req, _res, next) => {
@@ -262,7 +277,7 @@ export function createRoutes(deps: RouteDeps): Router {
         }
       })
 
-      const { value, usage } = await deps.gateway.callTool({
+      const { value, usage } = await gatewayForRequest(deps, req).callTool({
         system: [{ type: 'text', text: INTAKE_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages,
         tool: INTAKE_TOOL,
@@ -310,7 +325,7 @@ export function createRoutes(deps: RouteDeps): Router {
           }))
         : []
 
-      const { text, usage } = await deps.gateway.complete({
+      const { text, usage } = await gatewayForRequest(deps, req).complete({
         system: buildAssistantSystem(grounding),
         messages: [...history, { role: 'user', content: question }],
       })
@@ -364,7 +379,7 @@ export function createRoutes(deps: RouteDeps): Router {
         .map((s) => `- ${s.citation} — ${s.summary}`)
         .join('\n')
 
-      const { text, usage } = await deps.gateway.complete({
+      const { text, usage } = await gatewayForRequest(deps, req).complete({
         system: [
           { type: 'text', text: INTERVIEW_DRAFTING_SYSTEM_PROMPT },
           {
@@ -424,7 +439,7 @@ export function createRoutes(deps: RouteDeps): Router {
         throw HttpError.badRequest('Unsupported image type. Use a JPEG, PNG, WebP or GIF photo.')
       }
 
-      const { value, usage } = await deps.gateway.callTool({
+      const { value, usage } = await gatewayForRequest(deps, req).callTool({
         system: [{ type: 'text', text: OCR_SYSTEM, cache_control: { type: 'ephemeral' } }],
         messages: [
           {
