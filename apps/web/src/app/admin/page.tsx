@@ -90,7 +90,7 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8">
-      <h1 className="text-2xl font-bold">JusticeDesk admin</h1>
+      <h1 className="text-2xl">JusticeDesk admin</h1>
 
       <nav className="mt-4 flex flex-wrap gap-2" aria-label="Admin sections">
         {tabs.map(([key, label]) => (
@@ -109,7 +109,7 @@ export default function AdminPage() {
 
       {tab === 'flags' && (
         <section className="mt-6">
-          <h2 className="text-lg font-bold">Unreviewed guardrail findings</h2>
+          <h2 className="text-lg">Unreviewed guardrail findings</h2>
           <p className="text-sm text-ink-muted">
             Blocked responses first. Reviewing does not un-block anything — the litigant already saw
             the substitute message.
@@ -159,7 +159,7 @@ export default function AdminPage() {
 
       {tab === 'plans' && (
         <section className="mt-6">
-          <h2 className="text-lg font-bold">Pricing board</h2>
+          <h2 className="text-lg">Pricing board</h2>
           <p className="text-sm text-ink-muted">
             A live plan&apos;s price is frozen. Changing a price publishes a new plan and retires the
             old one — existing subscribers keep what they signed up on.
@@ -194,7 +194,7 @@ export default function AdminPage() {
 
       {tab === 'workflows' && (
         <section className="mt-6">
-          <h2 className="text-lg font-bold">Workflow definitions</h2>
+          <h2 className="text-lg">Workflow definitions</h2>
           <p className="text-sm text-ink-muted">
             Publishing creates a new version. Cases already open stay on the version they started
             with.
@@ -226,7 +226,7 @@ export default function AdminPage() {
 
       {tab === 'templates' && (
         <section className="mt-6">
-          <h2 className="text-lg font-bold">Document templates</h2>
+          <h2 className="text-lg">Document templates</h2>
           <p className="text-sm text-ink-muted">
             A template whose field map still has PLACEHOLDER_ names cannot be marked verified, and
             the renderer refuses to fill it.

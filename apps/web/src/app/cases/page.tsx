@@ -31,7 +31,7 @@ export default function CasesPage() {
 
   return (
     <div className="container-readable py-8">
-      <h1 className="text-2xl font-bold">My cases</h1>
+      <h1 className="text-2xl">My cases</h1>
 
       {loaded && cases.length === 0 && (
         <div className="card mt-6">
@@ -45,7 +45,7 @@ export default function CasesPage() {
       <ul className="mt-6 space-y-3">
         {cases.map((c) => (
           <li key={c.id}>
-            <Link href={`/cases/${c.id}`} className="card block hover:bg-paper-sunk">
+            <Link href={`/cases/${c.id}`} className="card-interactive block no-underline">
               <span className="text-lg font-semibold">{c.caseTypeName}</span>
               {c.courtCaseNumber && (
                 <span className="block text-sm text-ink-muted">Case {c.courtCaseNumber}</span>

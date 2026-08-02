@@ -59,13 +59,13 @@ export default function DeadlinesPage({ params }: { params: { caseId: string } }
       <Link href={`/cases/${params.caseId}`} className="text-brand underline">
         ← Back to my case
       </Link>
-      <h1 className="mt-4 text-2xl font-bold">My dates</h1>
+      <h1 className="mt-4 text-2xl">My dates</h1>
       {today && <p className="mt-1 text-ink-muted">Today is {formatDate(today)}.</p>}
 
       {error && <p className="mt-4 text-urgent">{error}</p>}
 
       <div className="card mt-6 bg-brand-light">
-        <h2 className="font-bold">Text reminders</h2>
+        <h2>Text reminders</h2>
         <p className="mt-1 text-sm">
           We text you 14 days, 7 days, 2 days and 1 day before each date. Reply STOP to any message
           to stop them.
@@ -73,7 +73,7 @@ export default function DeadlinesPage({ params }: { params: { caseId: string } }
       </div>
 
       <section className="mt-8">
-        <h2 className="text-xl font-bold">Coming up</h2>
+        <h2 className="text-xl">Coming up</h2>
         {upcoming.length === 0 ? (
           <p className="mt-2 text-ink-muted">
             No dates yet. Once we know when you were served or when your hearing is, they appear
@@ -83,7 +83,7 @@ export default function DeadlinesPage({ params }: { params: { caseId: string } }
           <ul className="mt-4 space-y-4">
             {upcoming.map((deadline) => (
               <li key={deadline.id} className="card">
-                <h3 className="text-lg font-bold">{deadline.title}</h3>
+                <h3 className="text-lg font-semibold">{deadline.title}</h3>
                 <p className="mt-2">
                   <DeadlineBadge urgency={urgencyOf(deadline.dueDate, today)} dueDate={deadline.dueDate} />
                 </p>
@@ -106,7 +106,7 @@ export default function DeadlinesPage({ params }: { params: { caseId: string } }
 
       {past.length > 0 && (
         <section className="mt-10">
-          <h2 className="text-xl font-bold">Past</h2>
+          <h2 className="text-xl">Past</h2>
           <ul className="mt-4 space-y-2">
             {past.map((deadline) => (
               <li key={deadline.id} className="rounded-lg bg-paper-sunk p-3 text-sm">

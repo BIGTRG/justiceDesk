@@ -39,7 +39,7 @@ export function Term({ children, term }: { children: React.ReactNode; term?: str
           id={panelId}
           role="note"
           className="absolute left-0 top-full z-20 mt-1 block w-72 max-w-[85vw] rounded-lg
-                     border border-paper-edge bg-white p-3 text-sm font-normal text-ink shadow-lg"
+                     border border-paper-edge bg-paper-card p-3 text-sm font-normal text-ink shadow-lg"
         >
           <span className="block font-semibold capitalize">{entry.term}</span>
           <span className="mt-1 block text-ink-muted">{entry.definition}</span>

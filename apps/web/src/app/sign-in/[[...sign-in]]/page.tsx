@@ -10,7 +10,7 @@ import { SignIn } from '@clerk/nextjs'
 export default function SignInPage() {
   return (
     <div className="container-readable py-10">
-      <h1 className="text-2xl font-bold">Save your case</h1>
+      <h1 className="text-2xl">Save your case</h1>
       <p className="mt-2 text-ink-muted">
         We will text you a code. Your number is also how we send deadline reminders.
       </p>

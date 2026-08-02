@@ -67,14 +67,14 @@ export default function CloseCasePage({ params }: { params: { caseId: string } }
   if (result) {
     return (
       <div className="container-readable py-8">
-        <h1 className="text-2xl font-bold">Your case is closed</h1>
+        <h1 className="text-2xl">Your case is closed</h1>
         <p className="mt-2 text-ink-muted">
           Your documents stay available. You can read, print and download them any time.
         </p>
 
         {result.activeSubscriptions.length > 0 && (
           <div className="card mt-6 border-2 border-brand">
-            <h2 className="text-lg font-bold">You still have a monthly plan on this case</h2>
+            <h2 className="text-lg">You still have a monthly plan on this case</h2>
             <p className="mt-2 text-ink-muted">
               Your case is over, so you probably do not need it any more. Cancelling now stops any
               further charges. You keep access to your documents either way.
@@ -104,7 +104,7 @@ export default function CloseCasePage({ params }: { params: { caseId: string } }
       <Link href={`/cases/${params.caseId}`} className="text-brand underline">
         ← Back to my case
       </Link>
-      <h1 className="mt-4 text-2xl font-bold">Close this case</h1>
+      <h1 className="mt-4 text-2xl">Close this case</h1>
       <p className="mt-2 text-ink-muted">
         Closing stops your reminders. Your documents stay available to read and print.
       </p>

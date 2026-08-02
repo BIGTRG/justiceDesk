@@ -69,7 +69,7 @@ export default function DocumentsPage({ params }: { params: { caseId: string } }
       <Link href={`/cases/${params.caseId}`} className="text-brand underline">
         ← Back to my case
       </Link>
-      <h1 className="mt-4 text-2xl font-bold">My documents</h1>
+      <h1 className="mt-4 text-2xl">My documents</h1>
       <p className="mt-2 text-ink-muted">
         Everything you have made or uploaded. Drafts are watermarked until you are ready to file.
       </p>
@@ -89,7 +89,7 @@ export default function DocumentsPage({ params }: { params: { caseId: string } }
             <li key={doc.id} className="card">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-bold">{doc.title}</h2>
+                  <h2 className="text-lg">{doc.title}</h2>
                   <p className="text-sm text-ink-muted">
                     Version {doc.version} · {formatDate(doc.createdAt.slice(0, 10))}
                   </p>
@@ -157,8 +157,8 @@ function FilingInstructions({ doc, onClose }: { doc: Doc; onClose: () => void })
       aria-labelledby="filing-heading"
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
     >
-      <div className="max-h-[90dvh] w-full max-w-readable overflow-y-auto rounded-t-2xl bg-white p-6 sm:rounded-2xl">
-        <h2 id="filing-heading" className="text-xl font-bold">
+      <div className="max-h-[90dvh] w-full max-w-readable overflow-y-auto rounded-t-2xl bg-paper-card p-6 sm:rounded-2xl">
+        <h2 id="filing-heading" className="text-xl">
           Filing {doc.title}
         </h2>
 

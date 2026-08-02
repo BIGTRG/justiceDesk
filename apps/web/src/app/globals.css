@@ -7,11 +7,39 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-paper text-ink antialiased;
+    @apply bg-paper font-sans text-ink antialiased;
   }
+
+  /*
+   * Headings are serif; body is not. This is the single biggest reason the approved
+   * mockup reads as a law office rather than a dashboard, so it lives in base styles
+   * where no screen can forget to apply it.
+   *
+   * Georgia is on essentially every device, so this costs no webfont, no layout shift
+   * and no extra request on a phone in a courthouse hallway.
+   */
+  h1,
+  h2,
+  h3 {
+    @apply font-serif font-normal tracking-tight text-ink;
+  }
+  h1 {
+    @apply text-3xl leading-tight sm:text-4xl;
+  }
+  h2 {
+    @apply text-xl leading-snug sm:text-2xl;
+  }
+  h3 {
+    @apply text-lg;
+  }
+
   /* Visible focus is not optional — many users here navigate by keyboard or screen reader. */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand ring-offset-2;
+    @apply rounded-sm outline-none ring-2 ring-brand ring-offset-2 ring-offset-paper;
+  }
+
+  ::selection {
+    @apply bg-accent-soft text-ink;
   }
 }
 
@@ -19,24 +47,145 @@
   .container-readable {
     @apply mx-auto w-full max-w-readable px-4;
   }
+
+  /* -------------------------------------------------------------- type */
+
+  /*
+   * Small caps label above a section or card. The mockup uses this to introduce a block
+   * without spending a heading on it.
+   */
+  .eyebrow {
+    @apply text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-ink-faint;
+  }
+
+  /* Body copy inside documents and explanations. */
+  .prose-legal {
+    @apply text-base leading-relaxed text-ink-muted;
+  }
+
+  /* -------------------------------------------------------------- buttons */
+
   .btn {
     @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg px-5 py-3
-           text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+           text-base font-semibold transition-all duration-150
+           active:translate-y-px
+           disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0;
   }
   .btn-primary {
-    @apply btn bg-brand text-white hover:bg-brand-dark;
+    @apply btn bg-brand text-white shadow-sm hover:bg-brand-dark hover:shadow-md;
   }
   .btn-secondary {
-    @apply btn border border-paper-edge bg-white text-ink hover:bg-paper-sunk;
+    @apply btn border border-paper-edge bg-paper-card text-ink hover:border-brand/40 hover:bg-paper-tint;
   }
+  /* Gold. Reserved for the one action a screen actually wants — never two on a screen. */
+  .btn-accent {
+    @apply btn bg-accent text-white shadow-sm hover:bg-accent-ink hover:shadow-md;
+  }
+  .btn-quiet {
+    @apply btn min-h-0 px-2 py-1 text-sm font-semibold text-brand underline underline-offset-2
+           hover:text-brand-dark;
+  }
+
+  /* -------------------------------------------------------------- surfaces */
+
   .card {
-    @apply rounded-xl border border-paper-edge bg-white p-5;
+    @apply rounded-xl border border-paper-edge bg-paper-card p-5 shadow-card;
   }
+  /* A card the user can act on. */
+  .card-interactive {
+    @apply card transition-shadow duration-150 hover:border-brand/30 hover:shadow-lift;
+  }
+  /*
+   * The single most important thing on a screen — the next action, the deadline.
+   * A gold left rule rather than a filled panel: it draws the eye without shouting at
+   * someone who is already frightened.
+   */
+  .card-primary {
+    @apply card border-l-4 border-l-accent;
+  }
+  /* Inset panel for supporting detail — our working, a citation, a quiet aside. */
+  .panel {
+    @apply rounded-lg border border-paper-edge/70 bg-paper-tint p-4;
+  }
+
+  /* -------------------------------------------------------------- notices */
+
+  .notice {
+    @apply rounded-xl border p-5;
+  }
+  .notice-urgent {
+    @apply notice border-urgent/25 bg-urgent-light;
+  }
+  .notice-warn {
+    @apply notice border-accent/30 bg-accent-soft;
+  }
+  .notice-ok {
+    @apply notice border-ok/25 bg-ok-light;
+  }
+  .notice-info {
+    @apply notice border-brand/20 bg-brand-light;
+  }
+
+  /* -------------------------------------------------------------- badges */
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold
+           uppercase tracking-wide;
+  }
+  .badge-urgent {
+    @apply badge bg-urgent-light text-urgent;
+  }
+  .badge-warn {
+    @apply badge bg-accent-soft text-accent-ink;
+  }
+  .badge-ok {
+    @apply badge bg-ok-light text-ok;
+  }
+  .badge-neutral {
+    @apply badge bg-brand-light text-brand-dark;
+  }
+
+  /* -------------------------------------------------------------- forms */
+
   .field {
-    @apply w-full rounded-lg border border-paper-edge px-4 py-3 text-base
+    @apply w-full rounded-lg border border-paper-edge bg-paper-card px-4 py-3 text-base
+           transition-colors placeholder:text-ink-faint
            focus:border-brand focus:outline-none;
   }
   .label {
     @apply mb-2 block text-base font-semibold text-ink;
+  }
+  .hint {
+    @apply mt-1.5 block text-sm text-ink-muted;
+  }
+  .error-text {
+    @apply mt-1.5 block text-sm font-semibold text-urgent;
+  }
+
+  /* -------------------------------------------------------------- loading */
+
+  /*
+   * Skeletons rather than a spinner. On a slow phone a spinner says "wait"; a skeleton
+   * says what is about to arrive, which is the difference between waiting and worrying.
+   */
+  .skeleton {
+    @apply animate-pulse rounded bg-paper-sunk;
+  }
+}
+
+@layer utilities {
+  /* Hairline rule in the mockup's warm line colour. */
+  .rule {
+    @apply border-t border-paper-edge;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

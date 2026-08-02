@@ -94,28 +94,36 @@ export default function LandingPage() {
           <button
             type="button"
             onClick={() => setLang(lang === 'en' ? 'es' : 'en')}
-            className="rounded-lg border border-paper-edge px-3 py-2 text-sm font-semibold"
+            className="rounded-lg border border-paper-edge bg-paper-card px-3 py-2 text-sm
+                       font-semibold transition-colors hover:border-brand/40"
             lang={lang === 'en' ? 'es' : 'en'}
           >
             {t.toggle}
           </button>
         </div>
 
-        <h1 className="mt-4 text-3xl font-bold leading-tight">{t.headline}</h1>
-        <p className="mt-3 text-lg text-ink-muted">{t.sub}</p>
+        <h1 className="mt-4 leading-tight">{t.headline}</h1>
+        <p className="mt-3 max-w-[34rem] text-lg text-ink-muted">{t.sub}</p>
 
-        {/* Door 1 — CALL. Largest element on the page, and a real tel: link. */}
+        {/*
+          Door 1 — CALL. Largest element on the page, and a real tel: link.
+          Filled navy rather than a tinted panel: it is the only element on the page that
+          should be unmissable, and the number is set in the serif so it reads as a
+          nameplate rather than a button label.
+        */}
         <a
           href={`tel:${dial}`}
-          className="mt-7 block rounded-2xl border-2 border-brand bg-brand-light p-6 text-center"
+          className="group mt-7 block rounded-2xl bg-brand p-7 text-center no-underline
+                     shadow-card transition-shadow hover:shadow-lift"
         >
-          <span className="block text-sm font-bold uppercase tracking-wide text-brand-dark">
+          <span className="block text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-accent">
             {t.callLabel}
           </span>
-          <span className="mt-2 block text-4xl font-bold tracking-tight text-brand-dark sm:text-5xl">
+          <span className="mt-3 block font-serif text-4xl tracking-tight text-white sm:text-5xl">
             {display}
           </span>
-          <span className="mt-2 block text-sm text-brand-dark">{t.callHint}</span>
+          <span aria-hidden className="mx-auto mt-4 block h-px w-10 bg-accent/60" />
+          <span className="mt-4 block text-sm text-white/75">{t.callHint}</span>
         </a>
 
         {/* Doors 2 and 3 */}
@@ -123,48 +131,58 @@ export default function LandingPage() {
           <button
             type="button"
             onClick={() => router.push('/intake')}
-            className="card text-left hover:bg-paper-sunk"
+            className="card-interactive text-left"
           >
-            <span className="block text-lg font-semibold">{t.chat}</span>
+            <span className="block font-serif text-lg text-ink">{t.chat}</span>
             <span className="mt-1 block text-sm text-ink-muted">{t.chatHint}</span>
           </button>
           <button
             type="button"
             onClick={() => router.push('/intake?start=1')}
-            className="card text-left hover:bg-paper-sunk"
+            className="card-interactive text-left"
           >
-            <span className="block text-lg font-semibold">{t.start}</span>
+            <span className="block font-serif text-lg text-ink">{t.start}</span>
             <span className="mt-1 block text-sm text-ink-muted">{t.startHint}</span>
           </button>
         </div>
 
         {/* Placed above the marketing, on purpose. */}
-        <div className="mt-8 rounded-xl border border-urgent/30 bg-urgent-light p-5">
-          <h2 className="font-bold text-urgent">{t.urgentTitle}</h2>
+        <div className="notice-urgent mt-8">
+          <h2 className="text-lg text-urgent sm:text-xl">{t.urgentTitle}</h2>
           <p className="mt-2 text-sm">{t.urgentBody}</p>
         </div>
 
-        <section className="mt-10">
-          <h2 className="text-xl font-bold">{t.howTitle}</h2>
-          <ul className="mt-4 space-y-4">
-            {t.how.map(([title, body]) => (
-              <li key={title}>
-                <p className="font-semibold">{title}</p>
-                <p className="text-sm text-ink-muted">{body}</p>
+        <section className="mt-12">
+          <p className="eyebrow">{t.howTitle}</p>
+          {/* Numbered and ruled, so it reads as a sequence rather than a feature list. */}
+          <ol className="mt-4 divide-y divide-paper-edge border-y border-paper-edge">
+            {t.how.map(([title, body], i) => (
+              <li key={title} className="flex gap-4 py-4">
+                <span className="font-serif text-lg text-accent" aria-hidden>
+                  {i + 1}
+                </span>
+                <span className="block">
+                  <span className="block font-semibold">{title}</span>
+                  <span className="mt-0.5 block text-sm text-ink-muted">{body}</span>
+                </span>
               </li>
             ))}
-          </ul>
+          </ol>
         </section>
 
         {/* Stated plainly and given its own heading rather than buried in a footer. */}
-        <section className="mt-8 rounded-xl bg-paper-sunk p-5">
-          <h2 className="font-bold">{t.notTitle}</h2>
+        <section className="panel mt-10">
+          <h2 className="text-lg sm:text-xl">{t.notTitle}</h2>
           <p className="mt-2 text-sm text-ink-muted">{t.not}</p>
         </section>
 
-        <div className="mt-8">
-          <h2 className="font-bold">{t.already}</h2>
-          <Link href="/cases" className="mt-2 inline-block font-semibold text-brand underline">
+        <div className="rule mt-10 pt-6">
+          <h2 className="text-lg sm:text-xl">{t.already}</h2>
+          <Link
+            href="/cases"
+            className="mt-2 inline-block font-semibold text-brand underline underline-offset-4
+                       hover:text-brand-dark"
+          >
             {t.goToCases}
           </Link>
         </div>

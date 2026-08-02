@@ -157,7 +157,7 @@ export default function IntakePage() {
   if (extraction) {
     return (
       <div className="container-readable py-8">
-        <h1 className="text-2xl font-bold">Check what we read</h1>
+        <h1 className="text-2xl">Check what we read</h1>
         <p className="mt-2 text-ink-muted">
           We read these from your photo. Please check each one against your papers and fix anything
           that is wrong. Your dates depend on these being right.
@@ -221,7 +221,7 @@ export default function IntakePage() {
   // ---------------------------------------------------------------- S3
   return (
     <div className="container-readable py-8">
-      <h1 className="text-2xl font-bold">Tell us what happened</h1>
+      <h1 className="text-2xl">Tell us what happened</h1>
 
       <div className="mt-6 space-y-4" role="log" aria-live="polite">
         {messages.map((message, i) => (
@@ -230,7 +230,7 @@ export default function IntakePage() {
             className={
               message.role === 'user'
                 ? 'ml-auto max-w-[85%] rounded-xl rounded-br-sm bg-brand px-4 py-3 text-white'
-                : 'mr-auto max-w-[90%] rounded-xl rounded-bl-sm bg-paper-sunk px-4 py-3'
+                : 'mr-auto max-w-[90%] rounded-xl rounded-bl-sm border border-paper-edge bg-paper-card px-4 py-3 shadow-card'
             }
           >
             {message.content}
@@ -243,7 +243,7 @@ export default function IntakePage() {
 
       {readyToOpen ? (
         <div className="card mt-6">
-          <h2 className="font-bold">We think this is the right process</h2>
+          <h2>We think this is the right process</h2>
           <p className="mt-2 text-ink-muted">{String(classification?.summary ?? '')}</p>
           <button className="btn-primary mt-4 w-full" onClick={() => void createCase()} disabled={busy}>
             Open my case
@@ -274,7 +274,7 @@ export default function IntakePage() {
       )}
 
       <div className="card mt-8">
-        <h2 className="font-bold">Have the papers with you?</h2>
+        <h2>Have the papers with you?</h2>
         <p className="mt-1 text-ink-muted">
           Take a photo of the first page. We will read the dates and the case number, then ask you
           to check them.

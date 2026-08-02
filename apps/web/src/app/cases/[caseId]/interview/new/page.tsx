@@ -259,8 +259,8 @@ export default function InterviewPage({ params }: { params: { caseId: string } }
         <p className="mt-3 text-sm text-ink-faint">Your answers save as you go.</p>
       </form>
 
-      <aside className="card mt-10 bg-paper-sunk">
-        <h2 className="font-bold">What your document will say</h2>
+      <aside className="panel mt-10">
+        <h2>What your document will say</h2>
         <dl className="mt-3 space-y-2 text-sm">
           {Object.entries(answers)
             .filter(([, v]) => v !== '' && v !== undefined)

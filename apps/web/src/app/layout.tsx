@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 import { DisclosureFooter } from '@/components/Disclosure'
+import { Masthead } from '@/components/Masthead'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -26,6 +27,9 @@ export const viewport: Viewport = {
   // Never disable zoom. Pinch-to-zoom is an accessibility requirement, and this audience
   // includes people reading court papers on a cracked phone screen.
   maximumScale: 5,
+  // Matches the warm page, so the phone's browser chrome blends into the app rather than
+  // framing it in white.
+  themeColor: '#f5f3ee',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           >
             Skip to content
           </a>
+          <Masthead />
           <main id="main" className="flex-1">
             {children}
           </main>

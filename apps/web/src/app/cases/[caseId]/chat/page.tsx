@@ -58,7 +58,7 @@ export default function ChatPage({ params }: { params: { caseId: string } }) {
       <Link href={`/cases/${params.caseId}`} className="text-brand underline">
         ← Back to my case
       </Link>
-      <h1 className="mt-4 text-2xl font-bold">Ask about your case</h1>
+      <h1 className="mt-4 text-2xl">Ask about your case</h1>
       <p className="mt-2 text-ink-muted">
         We can explain how steps work, what your dates mean, and what your options are. We cannot
         tell you what to do — that is legal advice, and we are not a law firm.
@@ -88,7 +88,7 @@ export default function ChatPage({ params }: { params: { caseId: string } }) {
                 ? 'ml-auto max-w-[85%] rounded-xl rounded-br-sm bg-brand px-4 py-3 text-white'
                 : turn.blocked
                   ? 'mr-auto max-w-[92%] rounded-xl border border-warn/30 bg-warn-light px-4 py-3'
-                  : 'mr-auto max-w-[92%] whitespace-pre-wrap rounded-xl rounded-bl-sm bg-paper-sunk px-4 py-3'
+                  : 'mr-auto max-w-[92%] whitespace-pre-wrap rounded-xl rounded-bl-sm border border-paper-edge bg-paper-card px-4 py-3 shadow-card'
             }
           >
             {turn.content}
@@ -101,14 +101,30 @@ export default function ChatPage({ params }: { params: { caseId: string } }) {
             )}
           </div>
         ))}
-        {busy && <p className="text-ink-faint">Thinking…</p>}
+        {busy && (
+          // Three drifting dots rather than the word "Thinking…". The assistant is being
+          // careful here — often waiting on the UPL classifier — and a live indicator
+          // reads as considered rather than stalled.
+          <p className="flex items-center gap-1.5 text-ink-faint" role="status">
+            <span className="sr-only">Working on your answer</span>
+            {[0, 150, 300].map((delay) => (
+              <span
+                key={delay}
+                aria-hidden
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink-faint"
+                style={{ animationDelay: `${delay}ms` }}
+              />
+            ))}
+          </p>
+        )}
         <div ref={endRef} />
       </div>
 
-      {error && <p className="mt-2 text-urgent">{error}</p>}
+      {error && <p className="error-text mt-2">{error}</p>}
 
+      {/* Matches the page, not a card — the composer should feel like part of the sheet. */}
       <form
-        className="sticky bottom-0 mt-6 bg-white pt-3"
+        className="sticky bottom-0 mt-6 border-t border-paper-edge bg-paper pt-3"
         onSubmit={(e) => {
           e.preventDefault()
           if (draft.trim()) void ask(draft.trim())

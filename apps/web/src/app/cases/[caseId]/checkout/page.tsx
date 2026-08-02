@@ -63,11 +63,11 @@ export default function CheckoutPage({ params }: { params: { caseId: string } })
       <Link href={`/cases/${params.caseId}`} className="text-brand underline">
         ← Back to my case
       </Link>
-      <h1 className="mt-4 text-2xl font-bold">Choose how to pay</h1>
+      <h1 className="mt-4 text-2xl">Choose how to pay</h1>
 
       {loaded && plans.length === 0 && (
         <div className="card mt-6">
-          <h2 className="font-bold">JusticeDesk is free right now</h2>
+          <h2>JusticeDesk is free right now</h2>
           <p className="mt-2 text-ink-muted">
             We are still in review, so nothing is for sale yet. Keep using your case at no cost —
             all of it works.
@@ -92,7 +92,7 @@ export default function CheckoutPage({ params }: { params: { caseId: string } })
           <div className="mt-6 space-y-4">
             {plans.map((plan) => (
               <div key={plan.id} className="card">
-                <h2 className="text-lg font-bold">{plan.name}</h2>
+                <h2 className="text-lg">{plan.name}</h2>
                 <p className="mt-1 text-2xl font-bold">
                   {formatMoney(plan.priceCents)}
                   {plan.kind === 'monthly' && (

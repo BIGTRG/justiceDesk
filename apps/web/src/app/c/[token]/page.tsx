@@ -89,7 +89,7 @@ export default function PostCallLandingPage() {
       <>
         <DisclosureStrip />
         <div className="container-readable py-10">
-          <h1 className="text-2xl font-bold">This link has expired</h1>
+          <h1 className="text-2xl">This link has expired</h1>
           <p className="mt-3 text-ink-muted">{error}</p>
           <p className="mt-4">
             Call us back and we will text you a new one, or{' '}
@@ -104,9 +104,15 @@ export default function PostCallLandingPage() {
   }
 
   if (!landing) {
+    // This page is opened from a text message, often seconds after hanging up the phone,
+    // usually on cellular. It must never look like a dead link while it resolves.
     return (
-      <div className="container-readable py-10">
-        <p className="text-ink-muted">Loading…</p>
+      <div className="container-readable py-10" role="status" aria-busy="true">
+        <span className="sr-only">Loading</span>
+        <div className="skeleton h-3 w-28" />
+        <div className="skeleton mt-3 h-8 w-2/3" />
+        <div className="skeleton mt-6 h-32 rounded-xl" />
+        <div className="skeleton mt-4 h-12 rounded-lg" />
       </div>
     )
   }
@@ -125,7 +131,7 @@ export default function PostCallLandingPage() {
           </div>
         )}
 
-        <h1 className="text-2xl font-bold">Here is what we talked about</h1>
+        <h1 className="text-2xl">Here is what we talked about</h1>
 
         <div className="card mt-4">
           <p className="text-ink-muted">{landing.summaryText}</p>
@@ -140,7 +146,7 @@ export default function PostCallLandingPage() {
 
         {landing.offers.length > 0 ? (
           <>
-            <h2 className="mt-8 text-xl font-bold">What would you like to do?</h2>
+            <h2 className="mt-8 text-xl">What would you like to do?</h2>
             <div className="mt-4 space-y-3">
               {landing.offers.map((offer) => (
                 <div key={offer.feeKey} className="card">
@@ -167,7 +173,7 @@ export default function PostCallLandingPage() {
           </>
         ) : (
           <div className="card mt-8">
-            <h2 className="font-bold">Justice Desk is free right now</h2>
+            <h2>Justice Desk is free right now</h2>
             <p className="mt-2 text-ink-muted">
               We are still in review, so nothing is for sale yet. You can start your case at no
               cost — all of it works.
@@ -176,8 +182,8 @@ export default function PostCallLandingPage() {
         )}
 
         {/* Nobody leaves with nothing. */}
-        <div className="mt-8 rounded-xl bg-paper-sunk p-5">
-          <h2 className="font-bold">Not ready to decide?</h2>
+        <div className="panel mt-8">
+          <h2>Not ready to decide?</h2>
           <p className="mt-1 text-sm text-ink-muted">
             You can start your case for free and see your dates and next steps before you pay for
             anything.
